@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Text Helper" />
+  <title>Text Helper Preview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f2f2f7;
+      --card: #ffffff;
+      --blue: #0a84ff;
+      --ink: #111827;
+      --muted: #6b7280;
+      --soft-blue: #eff6ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #d1d5db;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+      display: grid;
+      place-items: center;
+    }
+    .phone {
+      width: min(390px, 100vw);
+      min-height: 844px;
+      background: var(--bg);
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 28px 80px rgba(0,0,0,.22);
+    }
+    .status {
+      height: 48px;
+      padding: 14px 24px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-weight: 800;
+      font-size: 17px;
+      letter-spacing: -.2px;
+    }
+    .signal { font-size: 14px; opacity: .9; }
+    .content {
+      padding: 12px 20px 112px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .header-text { flex: 1; }
+    h1 {
+      margin: 0;
+      font-size: 30px;
+      letter-spacing: -.8px;
+      line-height: 1;
+      color: #111;
+    }
+    .subtitle {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .settings {
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      background: var(--card);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 8px 22px rgba(0,0,0,.07);
+      font-size: 20px;
+    }
+    .hero {
+      background: var(--ink);
+      border-radius: 28px;
+      color: white;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+    .hero-title {
+      font-size: 28px;
+      line-height: 1.05;
+      letter-spacing: -.8px;
+      font-weight: 900;
+      max-width: 280px;
+    }
+    .hero-copy {
+      margin-top: 10px;
+      color: rgba(255,255,255,.72);
+      font-size: 15px;
+      line-height: 1.35;
+      font-weight: 600;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .metric {
+      border-radius: 18px;
+      background: rgba(255,255,255,.08);
+      text-align: center;
+      padding: 12px 4px;
+    }
+    .metric strong { display:block; font-size:17px; }
+    .metric span { display:block; margin-top:3px; color:rgba(255,255,255,.58); font-size:11px; font-weight:800; }
+    h2 {
+      font-size: 22px;
+      margin: 0 0 12px;
+      letter-spacing: -.3px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 22px;
+      padding: 16px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 7px 18px rgba(0,0,0,.045);
+    }
+    .icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 16px;
+      background: var(--soft-blue);
+      color: var(--blue);
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      flex: 0 0 auto;
+    }
+    .card-main { flex: 1; min-width: 0; }
+    .card-title { font-size: 16px; font-weight: 900; color: #111; }
+    .card-copy { margin-top: 5px; color: var(--muted); font-size: 13px; line-height: 1.28; font-weight: 600; }
+    .status-label { color: var(--blue); font-size: 12px; font-weight: 900; }
+    .cta {
+      position: absolute;
+      left: 50%;
+      bottom: 30px;
+      transform: translateX(-50%);
+      height: 54px;
+      min-width: 220px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--blue);
+      color: white;
+      font-size: 16px;
+      font-weight: 900;
+      box-shadow: 0 16px 30px rgba(10,132,255,.28);
+    }
+    @media (max-width: 390px) {
+      body { display: block; background: var(--bg); }
+      .phone { width: 100vw; min-height: 100vh; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone" aria-label="Text Helper iPhone 13 preview">
+    <div class="status"><span>3:11</span><span class="signal">▮▮▮ 5G 🔋</span></div>
+    <section class="content">
+      <div class="header">
+        <div class="header-text">
+          <h1>Text Helper</h1>
+          <div class="subtitle">iPhone 13 visual workflow</div>
+        </div>
+        <div class="settings">⚙</div>
+      </div>
+
+      <section class="hero">
+        <div class="pill">Feature 01</div>
+        <div class="hero-title">Offline visual tracking is ready.</div>
+        <div class="hero-copy">Each UI feature will be built on git and checked against an iPhone 13 viewport.</div>
+        <div class="metrics">
+          <div class="metric"><strong>390</strong><span>width</span></div>
+          <div class="metric"><strong>844</strong><span>height</span></div>
+          <div class="metric"><strong>Git</strong><span>tracked</span></div>
+        </div>
+      </section>
+
+      <h2>Build workflow</h2>
+      <article class="card"><div class="icon">👥</div><div class="card-main"><div class="card-title">Contacts</div><div class="card-copy">Build and manage local recipient groups.</div></div><div class="status-label">Next</div></article>
+      <article class="card"><div class="icon">📅</div><div class="card-main"><div class="card-title">Scheduled SMS</div><div class="card-copy">Queue messages for a selected date and time.</div></div><div class="status-label">Planned</div></article>
+      <article class="card"><div class="icon">🔔</div><div class="card-main"><div class="card-title">Reminders</div><div class="card-copy">Review messages before they are sent.</div></div><div class="status-label">Planned</div></article>
+      <article class="card"><div class="icon">🛡</div><div class="card-main"><div class="card-title">Safety checks</div><div class="card-copy">Confirm each message and keep a visible audit trail.</div></div><div class="status-label">Required</div></article>
+    </section>
+    <button class="cta">＋ Start next feature</button>
+  </main>
+</body>
+</html>
