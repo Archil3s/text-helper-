@@ -3,6 +3,7 @@ name: Web Preview
 on:
   push:
     branches:
+      - main
       - feature/flutter-iphone13-workflow
   pull_request:
     branches: [main]
@@ -35,10 +36,25 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Analyze project
+        run: flutter analyze
+
       - name: Build web preview
         run: flutter build web --release --base-href /text-helper-/
 
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: text-helper-web-preview
+          path: build/web
+          if-no-files-found: error
+
+      - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
@@ -47,7 +63,7 @@ jobs:
     name: Deploy Flutter web preview
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/feature/flutter-iphone13-workflow'
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
