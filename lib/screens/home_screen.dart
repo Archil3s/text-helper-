@@ -38,15 +38,15 @@ class HomeScreen extends StatelessWidget {
         bottom: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-          children: const [
-            _Header(),
-            SizedBox(height: 20),
-            _HeroPanel(),
-            SizedBox(height: 20),
-            _SectionTitle(title: 'Build workflow'),
-            SizedBox(height: 12),
-            ..._features.map(_FeatureCard.new),
-            SizedBox(height: 88),
+          children: [
+            const _Header(),
+            const SizedBox(height: 20),
+            const _HeroPanel(),
+            const SizedBox(height: 20),
+            const _SectionTitle(title: 'Build workflow'),
+            const SizedBox(height: 12),
+            ..._features.map((feature) => _FeatureCard(feature)),
+            const SizedBox(height: 88),
           ],
         ),
       ),
@@ -157,8 +157,8 @@ class _HeroPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          Row(
-            children: const [
+          const Row(
+            children: [
               _HeroMetric(value: '390', label: 'width'),
               SizedBox(width: 12),
               _HeroMetric(value: '844', label: 'height'),

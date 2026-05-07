@@ -1,0 +1,42 @@
+name: iPhone 13 Visual Workflow
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - feature/flutter-iphone13-workflow
+  workflow_dispatch:
+
+jobs:
+  iphone13-visuals:
+    name: Generate iPhone 13 offline visuals
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze Flutter project
+        run: flutter analyze
+
+      - name: Generate iPhone 13 golden visual
+        run: flutter test --update-goldens test/goldens/home_screen_iphone13_test.dart
+
+      - name: Upload iPhone 13 visual artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iphone13-home-screen-visual
+          path: |
+            test/goldens/*.png
+            test/goldens/failures/*.png
+          if-no-files-found: warn

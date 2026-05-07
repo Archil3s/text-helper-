@@ -1,0 +1,12 @@
+{
+  "name": "Text Helper",
+  "short_name": "Text Helper",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F2F2F7",
+  "theme_color": "#0A84FF",
+  "description": "Flutter web preview for Text Helper.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}
