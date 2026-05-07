@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalStorageService {
   static const String contactsKey = 'text_helper_contacts';
+  static const String scheduledMessagesKey = 'text_helper_scheduled_messages';
 
   Future<List<Map<String, dynamic>>> readList(String key) async {
     final prefs = await SharedPreferences.getInstance();
