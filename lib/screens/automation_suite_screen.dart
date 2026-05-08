@@ -9,6 +9,7 @@ import '../models/send_log_entry.dart';
 import '../services/appointment_reminder_store.dart';
 import '../services/automation_settings_store.dart';
 import '../services/native_sms_service.dart';
+import '../services/rate_limit_service.dart';
 import '../services/duplicate_protection_service.dart';
 import '../services/nz_recipient_store.dart';
 import '../services/send_log_store.dart';
@@ -28,6 +29,7 @@ class _AutomationSuiteScreenState extends State<AutomationSuiteScreen> {
   final SendLogStore _logStore = SendLogStore();
   final DuplicateProtectionService _duplicateProtection =
       DuplicateProtectionService();
+  final RateLimitService _rateLimit = RateLimitService();
 
   List<AppointmentReminder> _reminders = <AppointmentReminder>[];
   List<NzSmsRecipient> _contacts = <NzSmsRecipient>[];
@@ -353,8 +355,8 @@ class _AutomationSuiteScreenState extends State<AutomationSuiteScreen> {
                             .map(
                               (item) => DropdownMenuItem<NzSmsRecipient>(
                                 value: item,
-                                child:
-                                    Text('${item.name} Ã¢â‚¬Â¢ ${item.number}'),
+                                child: Text(
+                                    '${item.name} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${item.number}'),
                               ),
                             )
                             .toList(),
@@ -604,6 +606,22 @@ class _AutomationSuiteScreenState extends State<AutomationSuiteScreen> {
       return;
     }
 
+    final rateLimitCheck = await _rateLimit.check(reminder);
+    if (!rateLimitCheck.allowed) {
+      final reason = rateLimitCheck.reason ?? 'Blocked by rate limit.';
+      await _rateLimit.logBlockedRateLimit(
+        reminder: reminder,
+        reason: reason,
+      );
+
+      if (mounted) {
+        setState(() {
+          _status = reason;
+        });
+      }
+
+      return;
+    }
     final duplicateCheck = await _duplicateProtection.checkReminder(reminder);
     if (!duplicateCheck.allowed) {
       final reason = duplicateCheck.reason ?? 'Blocked duplicate send.';
