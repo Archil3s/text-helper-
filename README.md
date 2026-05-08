@@ -52,6 +52,8 @@ Text Helper is being built around the main complaints from SMS scheduler reviews
 
 - Battery optimization warning screen with native Android status check and setup guidance
 
+- Per-message timeline for queued, synced, triggered, sent, failed, and blocked states
+
 ## Still pending
 
 - Battery optimization warning and guidance screen
@@ -65,4 +67,5 @@ Text Helper is being built around the main complaints from SMS scheduler reviews
 See the full checklist for detailed status:
 
 [Review feedback implementation checklist](docs/review-feedback-checklist.md)
+
 

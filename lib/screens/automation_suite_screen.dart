@@ -9,6 +9,7 @@ import '../models/send_log_entry.dart';
 import '../services/appointment_reminder_store.dart';
 import '../services/automation_settings_store.dart';
 import '../services/native_sms_service.dart';
+import '../services/message_timeline_service.dart';
 import '../services/do_not_send_service.dart';
 import '../services/rate_limit_service.dart';
 import '../services/duplicate_protection_service.dart';
@@ -28,6 +29,7 @@ class _AutomationSuiteScreenState extends State<AutomationSuiteScreen> {
   final AutomationSettingsStore _settingsStore = AutomationSettingsStore();
   final NativeSmsService _smsService = NativeSmsService();
   final SendLogStore _logStore = SendLogStore();
+  final MessageTimelineService _timeline = MessageTimelineService();
   final DuplicateProtectionService _duplicateProtection =
       DuplicateProtectionService();
   final RateLimitService _rateLimit = RateLimitService();
@@ -358,7 +360,7 @@ class _AutomationSuiteScreenState extends State<AutomationSuiteScreen> {
                               (item) => DropdownMenuItem<NzSmsRecipient>(
                                 value: item,
                                 child: Text(
-                                    '${item.name} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ ${item.number}'),
+                                    '${item.name} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${item.number}'),
                               ),
                             )
                             .toList(),
@@ -542,8 +544,10 @@ class _AutomationSuiteScreenState extends State<AutomationSuiteScreen> {
 
     if (existing == null) {
       await _reminderStore.addReminder(reminder);
+      await _timeline.logQueued(reminder);
     } else {
       await _reminderStore.updateReminder(reminder);
+      await _timeline.logQueued(reminder);
     }
 
     await _load();
@@ -656,12 +660,15 @@ class _AutomationSuiteScreenState extends State<AutomationSuiteScreen> {
 
       return;
     }
+    await _timeline.logTriggered(reminder);
+
     await _smsService.sendSms(
       phoneNumber: reminder.phoneNumber,
       message: reminder.message,
     );
 
     await _logSend(reminder, 'sent', null);
+    await _timeline.logSent(reminder);
 
     await _reminderStore.updateReminder(
       reminder.copyWith(
