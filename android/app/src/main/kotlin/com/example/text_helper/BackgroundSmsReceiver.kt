@@ -35,6 +35,20 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
             return
         }
 
+        val rateLimitReason = rateLimitBlockReason(context)
+
+        if (rateLimitReason != null) {
+            writeSendLog(
+                context = context,
+                reminderId = reminderId,
+                contactName = contactName,
+                phoneNumber = phoneNumber,
+                message = message,
+                status = "blocked",
+                error = rateLimitReason
+            )
+            return
+        }
         val duplicateReason = duplicateBlockReason(
             context = context,
             reminderId = reminderId,
@@ -90,6 +104,62 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
     }
 
 
+
+    private fun rateLimitBlockReason(context: Context): String? {
+        val prefs = flutterPrefs(context)
+        val raw = prefs.getString("flutter.text_helper_send_log", "[]") ?: "[]"
+        val array = JSONArray(raw)
+        val now = System.currentTimeMillis()
+
+        var sentMinute = 0
+        var sentHour = 0
+        var sentDay = 0
+
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+
+            if (item.optString("status") != "sent") {
+                continue
+            }
+
+            val createdAt = item.optString("createdAt")
+            val createdMillis = try {
+                Instant.parse(createdAt).toEpochMilli()
+            } catch (_: Exception) {
+                0L
+            }
+
+            if (createdMillis <= 0L) {
+                continue
+            }
+
+            if (createdMillis >= now - 60_000L) {
+                sentMinute += 1
+            }
+
+            if (createdMillis >= now - 3_600_000L) {
+                sentHour += 1
+            }
+
+            if (createdMillis >= now - 86_400_000L) {
+                sentDay += 1
+            }
+        }
+
+        if (sentMinute >= 3) {
+            return "Rate limit hit: too many sends in the last minute."
+        }
+
+        if (sentHour >= 30) {
+            return "Rate limit hit: too many sends in the last hour."
+        }
+
+        if (sentDay >= 100) {
+            return "Rate limit hit: too many sends in the last day."
+        }
+
+        return null
+    }
     private fun duplicateBlockReason(
         context: Context,
         reminderId: String,
@@ -305,4 +375,5 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
         }
     }
 }
+
 

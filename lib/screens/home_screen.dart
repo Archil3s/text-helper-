@@ -2,7 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'automation_suite_screen.dart';
+import 'backup_restore_screen.dart';
 import 'background_service_screen.dart';
+import 'contact_groups_screen.dart';
 import 'contacts_screen.dart';
 import 'reliability_dashboard_screen.dart';
 import 'send_history_screen.dart';
@@ -43,7 +45,7 @@ class HomeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(28),
               ),
               child: const Text(
-                'Reliable SMS reminders with queue, calendar, and background checks.',
+                'Reliable SMS reminders with groups, queueing, background checks, and backup safety.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -68,6 +70,20 @@ class HomeScreen extends StatelessWidget {
               onTap: () => _open(context, const AutomationSuiteScreen()),
             ),
             _HomeButton(
+              icon: CupertinoIcons.person_3_fill,
+              title: 'Contact Groups',
+              subtitle:
+                  'Create groups, assign contacts, and queue group texts.',
+              onTap: () => _open(context, const ContactGroupsScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.archivebox_fill,
+              title: 'Backup & Restore',
+              subtitle:
+                  'Export and restore contacts, reminders, queue data, and logs.',
+              onTap: () => _open(context, const BackupRestoreScreen()),
+            ),
+            _HomeButton(
               icon: CupertinoIcons.calendar,
               title: 'Visual Calendar',
               subtitle: 'See appointments by month and add reminders.',
@@ -82,7 +98,7 @@ class HomeScreen extends StatelessWidget {
             _HomeButton(
               icon: CupertinoIcons.doc_text_search,
               title: 'Send History',
-              subtitle: 'View sent, failed, and blocked sends.',
+              subtitle: 'View sent, failed, blocked, and retryable sends.',
               onTap: () => _open(context, const SendHistoryScreen()),
             ),
             _HomeButton(

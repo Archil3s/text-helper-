@@ -34,7 +34,12 @@ class ContactGroupStore {
       _memoryCache = decoded
           .whereType<Map>()
           .map((item) => ContactGroup.fromJson(Map<String, dynamic>.from(item)))
+          .where((group) => group.id.isNotEmpty)
           .toList();
+
+      if (_memoryCache!.isEmpty) {
+        _memoryCache = seedGroups;
+      }
 
       return _memoryCache!;
     } catch (_) {
@@ -53,6 +58,27 @@ class ContactGroupStore {
         jsonEncode(groups.map((group) => group.toJson()).toList()),
       );
     } catch (_) {}
+  }
+
+  Future<void> addGroup(ContactGroup group) async {
+    final groups = await loadGroups();
+    await saveGroups([group, ...groups]);
+  }
+
+  Future<void> updateGroup(ContactGroup updated) async {
+    final groups = await loadGroups();
+    await saveGroups(
+      groups.map((group) => group.id == updated.id ? updated : group).toList(),
+    );
+  }
+
+  Future<void> deleteGroup(String id) async {
+    final groups = await loadGroups();
+    await saveGroups(groups.where((group) => group.id != id).toList());
+  }
+
+  Future<void> resetGroups() async {
+    await saveGroups(seedGroups);
   }
 
   List<ContactGroup> get seedGroups {

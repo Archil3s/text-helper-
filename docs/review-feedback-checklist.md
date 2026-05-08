@@ -1,4 +1,4 @@
-# Review feedback implementation checklist
+﻿# Review feedback implementation checklist
 
 This checklist tracks the major complaints found in competing SMS scheduler reviews and what Text Helper has or still needs.
 
@@ -58,26 +58,41 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
 
 ## Still to build / wire into product
 
-- [ ] Wire rate-limit checks into every send path
+- [x] Wire rate-limit checks into every send path
   - Automation send-now path
   - Queue runner path
   - Native background receiver path
+  - Rate-limit checks now run before SMS send attempts
+  - Automation send-now and queue runner use RateLimitService
+  - Native background receiver blocks sends above rate caps
 
-- [ ] Add Retry Failed Sends
+- [x] Add Retry Failed Sends
   - Retry individual failed messages
   - Retry all failed messages
   - Preserve duplicate/rate-limit safety checks
+  - Retry individual failed sends from Send History
+  - Retry all failed sends from Send History
+  - Retry preserves Test Mode, duplicate protection, and rate-limit checks
 
-- [ ] Add Backup Restore screen
+- [x] Add Backup Restore screen
   - Export backup
   - Paste/import backup JSON
   - Validate backup version
   - Restore contacts/reminders/logs safely
+  - Backup Restore screen added to Home
+  - Export copies backup JSON to clipboard
+  - Restore from clipboard or pasted JSON
+  - Backup version validation added
+  - Restore supports contacts, reminders, and optional send logs
 
-- [ ] Add Contact Groups UI
+- [x] Add Contact Groups UI
   - Create/edit/delete groups
   - Add/remove contacts from groups
   - Queue messages by group
+  - Contact Groups screen added to Home
+  - Create/edit/delete groups
+  - Add/remove contacts from groups
+  - Queue one message to every contact in a group
 
 - [ ] Enforce Do Not Send hard block
   - Check group membership before sending
@@ -127,3 +142,7 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
+
+
+
