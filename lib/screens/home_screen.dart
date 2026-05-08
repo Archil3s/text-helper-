@@ -1,51 +1,17 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import 'automation_suite_screen.dart';
+import 'background_service_screen.dart';
 import 'contacts_screen.dart';
-import 'safety_checks_screen.dart';
-import 'scheduled_sms_screen.dart';
+import 'reliability_dashboard_screen.dart';
+import 'send_history_screen.dart';
+import 'visual_calendar_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  static const List<_FeatureData> _features = [
-    _FeatureData(
-      icon: CupertinoIcons.person_2_fill,
-      title: 'Contacts',
-      subtitle: 'Build and manage local recipient groups.',
-      status: 'Ready',
-    ),
-    _FeatureData(
-      icon: CupertinoIcons.calendar_badge_plus,
-      title: 'Scheduled SMS',
-      subtitle: 'Queue local message drafts for review.',
-      status: 'Ready',
-    ),
-    _FeatureData(
-      icon: CupertinoIcons.shield_fill,
-      title: 'Safety checks',
-      subtitle: 'Confirm each message before send.',
-      status: 'Ready',
-    ),
-  ];
-
-  void _openFeature(BuildContext context, String title) {
-    Widget screen;
-
-    switch (title) {
-      case 'Contacts':
-        screen = const ContactsScreen();
-        break;
-      case 'Scheduled SMS':
-        screen = const ScheduledSmsScreen();
-        break;
-      case 'Safety checks':
-        screen = const SafetyChecksScreen();
-        break;
-      default:
-        screen = const ContactsScreen();
-    }
-
+  void _open(BuildContext context, Widget screen) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => screen,
@@ -61,200 +27,69 @@ class HomeScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           children: [
-            const _Header(),
-            const SizedBox(height: 20),
-            const _HeroPanel(),
-            const SizedBox(height: 20),
-            Text(
-              'Build workflow',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            ..._features.map(
-              (feature) => GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _openFeature(context, feature.title),
-                child: _FeatureCard(feature: feature),
-              ),
-            ),
-            const SizedBox(height: 88),
-          ],
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: FilledButton.icon(
-        onPressed: () => _openFeature(context, 'Contacts'),
-        icon: const Icon(CupertinoIcons.plus),
-        label: const Text('Start next feature'),
-        style: FilledButton.styleFrom(
-          minimumSize: const Size(220, 54),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(999),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Text Helper',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.7,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Android local workflow',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: CupertinoColors.secondaryLabel,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: const Icon(CupertinoIcons.gear_alt_fill, size: 22),
-        ),
-      ],
-    );
-  }
-}
-
-class _HeroPanel extends StatelessWidget {
-  const _HeroPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111827),
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: const Text(
-              'Working Build',
+            const Text(
+              'Text Helper',
               style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
+                fontSize: 34,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.8,
               ),
             ),
-          ),
-          const SizedBox(height: 18),
-          const Text(
-            'Local workflow is ready.',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              height: 1.05,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.8,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Contacts, scheduled drafts, and safety checks are available. SMS sending remains disabled.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.72),
-              fontSize: 15,
-              height: 1.35,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 18),
-          const Row(
-            children: [
-              _HeroMetric(value: '3', label: 'screens'),
-              SizedBox(width: 12),
-              _HeroMetric(value: 'Local', label: 'mode'),
-              SizedBox(width: 12),
-              _HeroMetric(value: '0', label: 'sent'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroMetric extends StatelessWidget {
-  const _HeroMetric({
-    required this.value,
-    required this.label,
-  });
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111827),
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: const Text(
+                'Reliable SMS reminders with queue, calendar, and background checks.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  height: 1.05,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8,
+                ),
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.58),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
+            const SizedBox(height: 20),
+            _HomeButton(
+              icon: CupertinoIcons.shield_fill,
+              title: 'Reliability',
+              subtitle:
+                  'Check permissions, duplicate risk, failures, and background readiness.',
+              onTap: () => _open(context, const ReliabilityDashboardScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.gear_alt_fill,
+              title: 'Automation',
+              subtitle: 'Schedule, queue, and send reminder texts.',
+              onTap: () => _open(context, const AutomationSuiteScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.calendar,
+              title: 'Visual Calendar',
+              subtitle: 'See appointments by month and add reminders.',
+              onTap: () => _open(context, const VisualCalendarScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.clock_fill,
+              title: 'Background Scheduler',
+              subtitle: 'Sync queued texts to send when app is closed.',
+              onTap: () => _open(context, const BackgroundServiceScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.doc_text_search,
+              title: 'Send History',
+              subtitle: 'View sent, failed, and blocked sends.',
+              onTap: () => _open(context, const SendHistoryScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.person_2_fill,
+              title: 'Contacts',
+              subtitle: 'Add or edit NZ test numbers.',
+              onTap: () => _open(context, const ContactsScreen()),
             ),
           ],
         ),
@@ -263,79 +98,63 @@ class _HeroMetric extends StatelessWidget {
   }
 }
 
-class _FeatureCard extends StatelessWidget {
-  const _FeatureCard({required this.feature});
-
-  final _FeatureData feature;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(feature.icon, color: const Color(0xFF0A84FF), size: 28),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  feature.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  feature.subtitle,
-                  style: const TextStyle(
-                    color: CupertinoColors.secondaryLabel,
-                    height: 1.28,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            feature.status,
-            style: const TextStyle(
-              color: Color(0xFF0A84FF),
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeatureData {
-  const _FeatureData({
+class _HomeButton extends StatelessWidget {
+  const _HomeButton({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.status,
+    required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final String status;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(icon, color: const Color(0xFF0A84FF), size: 28),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: CupertinoColors.secondaryLabel,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(CupertinoIcons.chevron_forward, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

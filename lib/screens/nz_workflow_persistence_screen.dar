@@ -1,0 +1,340 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+
+import '../services/nz_workflow_storage_service.dart';
+
+class NzWorkflowPersistenceScreen extends StatefulWidget {
+  const NzWorkflowPersistenceScreen({super.key});
+
+  @override
+  State<NzWorkflowPersistenceScreen> createState() =>
+      _NzWorkflowPersistenceScreenState();
+}
+
+class _NzWorkflowPersistenceScreenState
+    extends State<NzWorkflowPersistenceScreen> {
+  final NzWorkflowStorageService _storage = NzWorkflowStorageService();
+
+  bool _isLoading = true;
+  int _numberCount = 0;
+  int _consentCount = 0;
+  String _campaignName = 'Not saved';
+  bool _finalApproval = false;
+  int _manualExportRecipientCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWorkflow();
+  }
+
+  Future<void> _loadWorkflow() async {
+    final numbers =
+        await _storage.readList(NzWorkflowStorageService.nzNumbersKey);
+    final consentRecords =
+        await _storage.readList(NzWorkflowStorageService.consentRecordsKey);
+    final campaign =
+        await _storage.readMap(NzWorkflowStorageService.campaignDraftKey);
+    final finalReview =
+        await _storage.readMap(NzWorkflowStorageService.finalReviewKey);
+    final export =
+        await _storage.readMap(NzWorkflowStorageService.manualExportKey);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _numberCount = numbers.length;
+      _consentCount = consentRecords
+          .where((record) => record['hasConsent'] == true)
+          .length;
+      _campaignName = campaign['name'] as String? ?? 'Not saved';
+      _finalApproval = finalReview['finalApproval'] as bool? ?? false;
+      _manualExportRecipientCount = export['recipientCount'] as int? ?? 0;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _seedWorkflow() async {
+    setState(() => _isLoading = true);
+
+    await _storage.seedDemoWorkflow();
+    await _loadWorkflow();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Demo NZ workflow saved locally.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _clearWorkflow() async {
+    setState(() => _isLoading = true);
+
+    await _storage.clearWorkflow();
+    await _loadWorkflow();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('NZ workflow data cleared.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final readySteps = [
+      _numberCount > 0,
+      _consentCount > 0,
+      _campaignName != 'Not saved',
+      _manualExportRecipientCount > 0,
+    ].where((step) => step).length;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: AppBar(
+        title: const Text('Workflow Persistence'),
+        centerTitle: false,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                _HeroCard(
+                  readySteps: readySteps,
+                  totalSteps: 4,
+                  finalApproval: _finalApproval,
+                ),
+                const SizedBox(height: 20),
+                const _SectionTitle('Saved workflow data'),
+                const SizedBox(height: 12),
+                _StatusCard(
+                  icon: CupertinoIcons.number_circle_fill,
+                  title: 'NZ numbers',
+                  value: '$_numberCount saved',
+                  isReady: _numberCount > 0,
+                ),
+                _StatusCard(
+                  icon: CupertinoIcons.person_crop_circle_badge_checkmark,
+                  title: 'Consent records',
+                  value: '$_consentCount approved',
+                  isReady: _consentCount > 0,
+                ),
+                _StatusCard(
+                  icon: CupertinoIcons.chat_bubble_2_fill,
+                  title: 'Campaign draft',
+                  value: _campaignName,
+                  isReady: _campaignName != 'Not saved',
+                ),
+                _StatusCard(
+                  icon: CupertinoIcons.shield_fill,
+                  title: 'Final approval',
+                  value: _finalApproval ? 'Approved' : 'Pending',
+                  isReady: _finalApproval,
+                ),
+                _StatusCard(
+                  icon: CupertinoIcons.square_arrow_up_fill,
+                  title: 'Manual export',
+                  value: '$_manualExportRecipientCount recipients',
+                  isReady: _manualExportRecipientCount > 0,
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: _seedWorkflow,
+                  icon: const Icon(CupertinoIcons.tray_arrow_down_fill),
+                  label: const Text('Save demo workflow locally'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _clearWorkflow,
+                  icon: const Icon(CupertinoIcons.trash_fill),
+                  label: const Text('Clear saved workflow'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({
+    required this.readySteps,
+    required this.totalSteps,
+    required this.finalApproval,
+  });
+
+  final int readySteps;
+  final int totalSteps;
+  final bool finalApproval;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            CupertinoIcons.archivebox_fill,
+            color: Colors.white,
+            size: 36,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'NZ Workflow Storage',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 27,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '$readySteps/$totalSteps data sets ready • ${finalApproval ? 'approved' : 'send blocked'}',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.78),
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.isReady,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final bool isReady;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SurfaceCard(
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: isReady ? const Color(0xFF16A34A) : const Color(0xFFF97316),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: CupertinoColors.secondaryLabel,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            isReady ? 'Saved' : 'Missing',
+            style: TextStyle(
+              color:
+                  isReady ? const Color(0xFF16A34A) : const Color(0xFFF97316),
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+    );
+  }
+}
+
+class _SurfaceCard extends StatelessWidget {
+  const _SurfaceCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
