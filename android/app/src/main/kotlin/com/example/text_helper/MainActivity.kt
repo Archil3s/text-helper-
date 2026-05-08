@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import android.telephony.SmsManager
 import io.flutter.embedding.android.FlutterActivity
@@ -152,6 +153,30 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun isIgnoringBatteryOptimizations(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true
+        }
+
+        val powerManager = getSystemService(PowerManager::class.java)
+        return powerManager.isIgnoringBatteryOptimizations(packageName)
+    }
+
+    private fun openBatteryOptimizationSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return
+        }
+
+        try {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            startActivity(intent)
+        } catch (error: Exception) {
+            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            startActivity(intent)
+        }
+    }
     private fun syncBackgroundAlarms(alarms: List<Map<String, Any?>>): Int {
         cancelAllBackgroundAlarms()
 
@@ -284,3 +309,4 @@ class MainActivity : FlutterActivity() {
         }
     }
 }
+
