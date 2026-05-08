@@ -109,6 +109,33 @@ Text Helper includes device setup guides for:
 
 The guides cover battery optimization, auto-start, sleeping apps, app launch management, background activity, notifications, lock-screen behavior, and closed-app testing.
 
+
+## Recipient Audit Preview
+
+Text Helper includes a Recipient Audit screen to reduce wrong-recipient, wrong-group, and random-contact mistakes. It previews every queued recipient before sending or background sync, including:
+
+- contact name
+- phone number
+- normalized phone number
+- group label
+- test/live state
+- scheduled time
+- final message text
+- warnings for empty or suspicious numbers
+- warnings when country-code normalization would change the number
+
+## Schedule Validation and Advanced Repeat Builder
+
+Text Helper includes a Schedule Builder to validate date/time and recurrence choices before saving reminders. It supports:
+
+- first-run date/time validation
+- next 5 occurrence preview
+- once, every-minute test, hourly, daily, weekly, monthly, and custom interval rules
+- custom interval units: minutes, hours, days, and weeks
+- sending window start/end times
+- 12-hour or 24-hour display preference
+- warnings for past times, risky monthly dates, and sending-window conflicts
+
 ## Still pending
 
 - Battery optimization warning and guidance screen
@@ -122,6 +149,7 @@ The guides cover battery optimization, auto-start, sleeping apps, app launch man
 See the full checklist for detailed status:
 
 [Review feedback implementation checklist](docs/review-feedback-checklist.md)
+
 
 
 
