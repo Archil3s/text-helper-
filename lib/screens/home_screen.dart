@@ -6,11 +6,13 @@ import 'backup_restore_screen.dart';
 import 'background_health_wizard_screen.dart';
 import 'background_service_screen.dart';
 import 'battery_optimization_screen.dart';
+import 'brand_background_guides_screen.dart';
 import 'contact_groups_screen.dart';
 import 'contacts_screen.dart';
 import 'csv_import_export_screen.dart';
 import 'delivery_receipts_screen.dart';
 import 'message_timeline_screen.dart';
+import 'permissions_privacy_screen.dart';
 import 'reliability_dashboard_screen.dart';
 import 'send_history_screen.dart';
 import 'sms_policy_screen.dart';
@@ -52,7 +54,7 @@ class HomeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(28),
               ),
               child: const Text(
-                'Reliable SMS text reminders with receipts, templates, timeline, CSV tools, groups, queueing, background checks, and backup safety.',
+                'Reliable SMS text reminders with privacy guidance, device setup, receipts, templates, timeline, CSV tools, groups, queueing, background checks, and backup safety.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -69,6 +71,20 @@ class HomeScreen extends StatelessWidget {
               subtitle:
                   'Check permissions, duplicate risk, failures, and background readiness.',
               onTap: () => _open(context, const ReliabilityDashboardScreen()),
+            ),
+            _HomeButton(
+              icon: Icons.privacy_tip_outlined,
+              title: 'Permissions & Privacy',
+              subtitle:
+                  'Explain SMS permission, background alarms, local data, and antivirus warnings.',
+              onTap: () => _open(context, const PermissionsPrivacyScreen()),
+            ),
+            _HomeButton(
+              icon: Icons.phone_android_outlined,
+              title: 'Device Setup Guides',
+              subtitle:
+                  'Samsung, Xiaomi, Oppo, Realme, OnePlus, Vivo, Huawei, and Honor setup tips.',
+              onTap: () => _open(context, const BrandBackgroundGuidesScreen()),
             ),
             _HomeButton(
               icon: CupertinoIcons.chat_bubble_text_fill,
