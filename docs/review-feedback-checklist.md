@@ -164,8 +164,13 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
   - Native receipt events are stored for Flutter UI
   - App keeps wording as "Sent to Android SMS service" unless real delivery callback is received
 
-- [ ] Add clear SMS-only/MMS policy
+- [x] Add clear SMS-only/MMS policy
   - Avoid users expecting images/video/MMS unless intentionally implemented
+  - SMS / MMS Policy screen added to Home
+  - App clearly states SMS text only
+  - App clearly states MMS/media/images/videos/files are not supported yet
+  - Delivery wording guidance included
+  - Policy reviewed state added
 
 ## Release gate
 
@@ -178,6 +183,8 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
+
 
 
 
