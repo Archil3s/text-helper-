@@ -1,10 +1,13 @@
 import 'package:flutter/services.dart';
 
 import '../models/appointment_reminder.dart';
+import 'message_timeline_service.dart';
 
 class BackgroundAlarmService {
   static const MethodChannel _channel =
       MethodChannel('text_helper/background_alarm');
+
+  final MessageTimelineService _timelineService = MessageTimelineService();
 
   Future<bool> requestSmsPermission() async {
     try {
@@ -69,7 +72,13 @@ class BackgroundAlarmService {
       {'alarms': alarms},
     );
 
-    return result ?? 0;
+    final count = result ?? 0;
+
+    for (final reminder in reminders.take(count)) {
+      await _timelineService.logBackgroundSynced(reminder);
+    }
+
+    return count;
   }
 
   Future<void> cancelAllBackgroundAlarms() async {

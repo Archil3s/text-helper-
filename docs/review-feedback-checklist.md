@@ -125,13 +125,18 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
   - User warning and reviewed state added
   - Guidance for force-stop and manufacturer battery managers added
 
-- [ ] Add per-message status timeline
+- [x] Add per-message status timeline
   - Queued
   - Background alarm synced
   - Triggered
   - Sent to Android SMS service
   - Failed
   - Blocked
+  - Message Timeline screen added to Home
+  - Timeline event model/store/service added
+  - Queued, synced, triggered, sent, failed, and blocked states shown
+  - Background alarm sync writes timeline events
+  - Timeline derives status from reminders and send logs
 
 - [ ] Add CSV import/export
   - Import contacts/appointments
@@ -158,6 +163,7 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
 
 
 
