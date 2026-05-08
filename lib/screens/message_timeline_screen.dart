@@ -207,7 +207,7 @@ class _MessageTimelineScreenState extends State<MessageTimelineScreen> {
                 const SizedBox(height: 12),
                 _SurfaceCard(
                   child: Text(
-                    'This screen combines stored timeline events, reminders, and send logs. It uses “Sent to Android SMS service” unless real carrier delivery receipts are added later.',
+                    'This screen combines stored timeline events, reminders, and send logs. It uses â€œSent to Android SMS serviceâ€ unless real carrier delivery receipts are added later.',
                     style: const TextStyle(
                       color: CupertinoColors.secondaryLabel,
                       height: 1.35,
@@ -303,7 +303,7 @@ class _TimelineHero extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(
-            CupertinoIcons.timeline_selection,
+            CupertinoIcons.list_bullet,
             color: Colors.white,
             size: 34,
           ),
