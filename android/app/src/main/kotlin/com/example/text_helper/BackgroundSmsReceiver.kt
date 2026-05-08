@@ -194,7 +194,6 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
 
         val log = JSONObject()
         log.put("id", System.nanoTime().toString())
-        log.put("contactName", contactName)
         log.put("phoneNumber", phoneNumber)
         log.put("message", message)
         log.put("createdAt", nowIso())
@@ -236,7 +235,6 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
         val next = JSONObject()
         next.put("id", newReminderId)
         next.put("contactId", originalIntent.getStringExtra("contactId") ?: "")
-        next.put("contactName", originalIntent.getStringExtra("contactName") ?: "Unknown")
         next.put("phoneNumber", originalIntent.getStringExtra("phoneNumber") ?: "")
         next.put("appointmentTitle", originalIntent.getStringExtra("appointmentTitle") ?: "Appointment")
         next.put("location", originalIntent.getStringExtra("location") ?: "")
@@ -255,7 +253,6 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
             putExtra("alarmId", newReminderId)
             putExtra("reminderId", newReminderId)
             putExtra("contactId", originalIntent.getStringExtra("contactId") ?: "")
-            putExtra("contactName", originalIntent.getStringExtra("contactName") ?: "Unknown")
             putExtra("phoneNumber", originalIntent.getStringExtra("phoneNumber") ?: "")
             putExtra("appointmentTitle", originalIntent.getStringExtra("appointmentTitle") ?: "Appointment")
             putExtra("location", originalIntent.getStringExtra("location") ?: "")

@@ -168,7 +168,6 @@ class MainActivity : FlutterActivity() {
                 putExtra("alarmId", alarmId)
                 putExtra("reminderId", alarm["reminderId"] as? String ?: alarmId)
                 putExtra("contactId", alarm["contactId"] as? String ?: "")
-                putExtra("contactName", alarm["contactName"] as? String ?: "Unknown")
                 putExtra("phoneNumber", phoneNumber)
                 putExtra("appointmentTitle", alarm["appointmentTitle"] as? String ?: "Appointment")
                 putExtra("location", alarm["location"] as? String ?: "")

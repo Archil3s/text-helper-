@@ -1,7 +1,7 @@
 class SendLogEntry {
   const SendLogEntry({
     required this.id,
-    required this.contactName,
+    String? contactName,
     required this.phoneNumber,
     required this.message,
     required this.createdAt,
@@ -11,7 +11,6 @@ class SendLogEntry {
   });
 
   final String id;
-  final String contactName;
   final String phoneNumber;
   final String message;
   final DateTime createdAt;
@@ -19,10 +18,13 @@ class SendLogEntry {
   final String? errorMessage;
   final String? reminderId;
 
+  /// Backwards-compatible UI label.
+  /// This is NOT persisted and does not store the contact's real name.
+  String get contactName => phoneNumber.isEmpty ? 'Contact' : phoneNumber;
+
   factory SendLogEntry.fromJson(Map<String, dynamic> json) {
     return SendLogEntry(
       id: json['id'] as String? ?? '',
-      contactName: json['contactName'] as String? ?? 'Unknown',
       phoneNumber: json['phoneNumber'] as String? ?? '',
       message: json['message'] as String? ?? '',
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
@@ -36,7 +38,6 @@ class SendLogEntry {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'contactName': contactName,
       'phoneNumber': phoneNumber,
       'message': message,
       'createdAt': createdAt.toIso8601String(),
