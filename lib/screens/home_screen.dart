@@ -1,35 +1,57 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import 'contacts_screen.dart';
+import 'safety_checks_screen.dart';
+import 'scheduled_sms_screen.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  static const List<_FeatureCardData> _features = [
-    _FeatureCardData(
+  static const List<_FeatureData> _features = [
+    _FeatureData(
       icon: CupertinoIcons.person_2_fill,
       title: 'Contacts',
       subtitle: 'Build and manage local recipient groups.',
-      status: 'Next',
+      status: 'Ready',
     ),
-    _FeatureCardData(
+    _FeatureData(
       icon: CupertinoIcons.calendar_badge_plus,
       title: 'Scheduled SMS',
-      subtitle: 'Queue messages for a selected date and time.',
-      status: 'Planned',
+      subtitle: 'Queue local message drafts for review.',
+      status: 'Ready',
     ),
-    _FeatureCardData(
-      icon: CupertinoIcons.bell_fill,
-      title: 'Reminders',
-      subtitle: 'Review messages before they are sent.',
-      status: 'Planned',
-    ),
-    _FeatureCardData(
+    _FeatureData(
       icon: CupertinoIcons.shield_fill,
       title: 'Safety checks',
-      subtitle: 'Confirm each message and keep a visible audit trail.',
-      status: 'Required',
+      subtitle: 'Confirm each message before send.',
+      status: 'Ready',
     ),
   ];
+
+  void _openFeature(BuildContext context, String title) {
+    Widget screen;
+
+    switch (title) {
+      case 'Contacts':
+        screen = const ContactsScreen();
+        break;
+      case 'Scheduled SMS':
+        screen = const ScheduledSmsScreen();
+        break;
+      case 'Safety checks':
+        screen = const SafetyChecksScreen();
+        break;
+      default:
+        screen = const ContactsScreen();
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => screen,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,15 +65,40 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 20),
             const _HeroPanel(),
             const SizedBox(height: 20),
-            const _SectionTitle(title: 'Build workflow'),
+            Text(
+              'Build workflow',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
             const SizedBox(height: 12),
-            ..._features.map((feature) => _FeatureCard(feature)),
+            ..._features.map(
+              (feature) => GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _openFeature(context, feature.title),
+                child: _FeatureCard(feature: feature),
+              ),
+            ),
             const SizedBox(height: 88),
           ],
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: const _PrimaryAction(),
+      floatingActionButton: FilledButton.icon(
+        onPressed: () => _openFeature(context, 'Contacts'),
+        icon: const Icon(CupertinoIcons.plus),
+        label: const Text('Start next feature'),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(220, 54),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -76,7 +123,7 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'iPhone 13 visual workflow',
+                'Android local workflow',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: CupertinoColors.secondaryLabel,
                       fontWeight: FontWeight.w600,
@@ -93,7 +140,7 @@ class _Header extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
@@ -123,11 +170,11 @@ class _HeroPanel extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(999),
             ),
             child: const Text(
-              'Feature 01',
+              'Working Build',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -137,7 +184,7 @@ class _HeroPanel extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           const Text(
-            'Offline visual tracking is ready.',
+            'Local workflow is ready.',
             style: TextStyle(
               color: Colors.white,
               fontSize: 28,
@@ -148,9 +195,9 @@ class _HeroPanel extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Each UI feature will be built on git and checked against an iPhone 13 viewport.',
+            'Contacts, scheduled drafts, and safety checks are available. SMS sending remains disabled.',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.72),
+              color: Colors.white.withValues(alpha: 0.72),
               fontSize: 15,
               height: 1.35,
               fontWeight: FontWeight.w500,
@@ -159,11 +206,11 @@ class _HeroPanel extends StatelessWidget {
           const SizedBox(height: 18),
           const Row(
             children: [
-              _HeroMetric(value: '390', label: 'width'),
+              _HeroMetric(value: '3', label: 'screens'),
               SizedBox(width: 12),
-              _HeroMetric(value: '844', label: 'height'),
+              _HeroMetric(value: 'Local', label: 'mode'),
               SizedBox(width: 12),
-              _HeroMetric(value: 'Git', label: 'tracked'),
+              _HeroMetric(value: '0', label: 'sent'),
             ],
           ),
         ],
@@ -173,7 +220,10 @@ class _HeroPanel extends StatelessWidget {
 }
 
 class _HeroMetric extends StatelessWidget {
-  const _HeroMetric({required this.value, required this.label});
+  const _HeroMetric({
+    required this.value,
+    required this.label,
+  });
 
   final String value;
   final String label;
@@ -184,7 +234,7 @@ class _HeroMetric extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
+          color: Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(18),
         ),
         child: Column(
@@ -201,7 +251,7 @@ class _HeroMetric extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.58),
+                color: Colors.white.withValues(alpha: 0.58),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -213,27 +263,10 @@ class _HeroMetric extends StatelessWidget {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
-    );
-  }
-}
-
 class _FeatureCard extends StatelessWidget {
-  const _FeatureCard(this.data);
+  const _FeatureCard({required this.feature});
 
-  final _FeatureCardData data;
+  final _FeatureData feature;
 
   @override
   Widget build(BuildContext context) {
@@ -245,7 +278,7 @@ class _FeatureCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 14,
             offset: const Offset(0, 7),
           ),
@@ -253,22 +286,14 @@ class _FeatureCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(data.icon, color: const Color(0xFF0A84FF), size: 22),
-          ),
+          Icon(feature.icon, color: const Color(0xFF0A84FF), size: 28),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  data.title,
+                  feature.title,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -276,7 +301,7 @@ class _FeatureCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  data.subtitle,
+                  feature.subtitle,
                   style: const TextStyle(
                     color: CupertinoColors.secondaryLabel,
                     height: 1.28,
@@ -288,7 +313,7 @@ class _FeatureCard extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Text(
-            data.status,
+            feature.status,
             style: const TextStyle(
               color: Color(0xFF0A84FF),
               fontWeight: FontWeight.w800,
@@ -301,26 +326,8 @@ class _FeatureCard extends StatelessWidget {
   }
 }
 
-class _PrimaryAction extends StatelessWidget {
-  const _PrimaryAction();
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton.icon(
-      onPressed: () {},
-      icon: const Icon(CupertinoIcons.plus),
-      label: const Text('Start next feature'),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(220, 54),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-      ),
-    );
-  }
-}
-
-class _FeatureCardData {
-  const _FeatureCardData({
+class _FeatureData {
+  const _FeatureData({
     required this.icon,
     required this.title,
     required this.subtitle,
