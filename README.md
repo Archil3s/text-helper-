@@ -56,6 +56,8 @@ Text Helper is being built around the main complaints from SMS scheduler reviews
 
 - Template manager with reusable messages and placeholders
 
+- Delivery receipt support using Android sent/delivered callbacks where carrier/device supports it
+
 ## Still pending
 
 - Battery optimization warning and guidance screen
@@ -69,6 +71,7 @@ Text Helper is being built around the main complaints from SMS scheduler reviews
 See the full checklist for detailed status:
 
 [Review feedback implementation checklist](docs/review-feedback-checklist.md)
+
 
 
 

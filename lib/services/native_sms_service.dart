@@ -6,10 +6,14 @@ class NativeSmsService {
   Future<void> sendSms({
     required String phoneNumber,
     required String message,
+    String? reminderId,
+    String? contactId,
   }) async {
     await _channel.invokeMethod<void>('sendSms', {
       'phoneNumber': phoneNumber,
       'message': message,
+      'reminderId': reminderId,
+      'contactId': contactId,
     });
   }
 }

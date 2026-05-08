@@ -18,69 +18,56 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
         val phoneNumber = intent.getStringExtra("phoneNumber") ?: return
         val message = intent.getStringExtra("message") ?: return
         val reminderId = intent.getStringExtra("reminderId") ?: return
-        val contactName = intent.getStringExtra("contactName") ?: "Unknown"
+        val contactId = intent.getStringExtra("contactId") ?: ""
         val scheduledAtMillis = intent.getLongExtra("scheduledAtMillis", System.currentTimeMillis())
         val recurrenceRule = intent.getStringExtra("recurrenceRule") ?: "once"
 
+        SmsStatusStore.writeTimelineEvent(
+            context = context,
+            reminderId = reminderId,
+            phoneNumber = phoneNumber,
+            message = message,
+            status = "triggered",
+            title = "Triggered",
+            detail = "Background alarm triggered send attempt."
+        )
+
         if (!hasSendSmsPermission(context)) {
-            writeSendLog(
-                context = context,
-                reminderId = reminderId,
-                contactName = contactName,
-                phoneNumber = phoneNumber,
-                message = message,
-                status = "failed",
-                error = "SMS permission missing"
-            )
+            writeSendLog(context, reminderId, phoneNumber, message, "failed", "SMS permission missing")
+            SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "failed", "Failed", "SMS permission missing")
+            return
+        }
+
+        val doNotSendReason = doNotSendBlockReason(context, contactId)
+        if (doNotSendReason != null) {
+            writeSendLog(context, reminderId, phoneNumber, message, "blocked", doNotSendReason)
+            SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "blocked", "Blocked", doNotSendReason)
             return
         }
 
         val rateLimitReason = rateLimitBlockReason(context)
-
         if (rateLimitReason != null) {
-            writeSendLog(
-                context = context,
-                reminderId = reminderId,
-                contactName = contactName,
-                phoneNumber = phoneNumber,
-                message = message,
-                status = "blocked",
-                error = rateLimitReason
-            )
+            writeSendLog(context, reminderId, phoneNumber, message, "blocked", rateLimitReason)
+            SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "blocked", "Blocked", rateLimitReason)
             return
         }
+
         val duplicateReason = duplicateBlockReason(
             context = context,
             reminderId = reminderId,
             phoneNumber = phoneNumber,
             message = message
         )
-
         if (duplicateReason != null) {
-            writeSendLog(
-                context = context,
-                reminderId = reminderId,
-                contactName = contactName,
-                phoneNumber = phoneNumber,
-                message = message,
-                status = "blocked",
-                error = duplicateReason
-            )
+            writeSendLog(context, reminderId, phoneNumber, message, "blocked", duplicateReason)
+            SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "blocked", "Blocked", duplicateReason)
             return
         }
 
         try {
-            sendSms(phoneNumber, message)
+            sendSms(context, reminderId, phoneNumber, message)
             markReminderSent(context, reminderId)
-            writeSendLog(
-                context = context,
-                reminderId = reminderId,
-                contactName = contactName,
-                phoneNumber = phoneNumber,
-                message = message,
-                status = "sent",
-                error = null
-            )
+            writeSendLog(context, reminderId, phoneNumber, message, "sent", null)
 
             if (recurrenceRule != "once") {
                 createNextRecurringReminderAndAlarm(
@@ -94,16 +81,145 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
             writeSendLog(
                 context = context,
                 reminderId = reminderId,
-                contactName = contactName,
                 phoneNumber = phoneNumber,
                 message = message,
                 status = "failed",
                 error = error.message ?: "Unknown send error"
             )
+
+            SmsStatusStore.writeTimelineEvent(
+                context = context,
+                reminderId = reminderId,
+                phoneNumber = phoneNumber,
+                message = message,
+                status = "failed",
+                title = "Failed",
+                detail = error.message ?: "Unknown send error"
+            )
         }
     }
 
+    private fun hasSendSmsPermission(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            context.checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
 
+    private fun sendSms(
+        context: Context,
+        reminderId: String,
+        phoneNumber: String,
+        message: String
+    ) {
+        val smsManager = SmsManager.getDefault()
+        val parts = smsManager.divideMessage(message)
+        val sentIntents = ArrayList<PendingIntent>()
+        val deliveredIntents = ArrayList<PendingIntent>()
+
+        for (index in parts.indices) {
+            sentIntents.add(
+                createSmsStatusPendingIntent(
+                    context = context,
+                    receiverClass = SmsSentReceiver::class.java,
+                    reminderId = reminderId,
+                    phoneNumber = phoneNumber,
+                    message = message,
+                    partIndex = index,
+                    event = "sent"
+                )
+            )
+
+            deliveredIntents.add(
+                createSmsStatusPendingIntent(
+                    context = context,
+                    receiverClass = SmsDeliveredReceiver::class.java,
+                    reminderId = reminderId,
+                    phoneNumber = phoneNumber,
+                    message = message,
+                    partIndex = index,
+                    event = "delivered"
+                )
+            )
+        }
+
+        if (parts.size > 1) {
+            smsManager.sendMultipartTextMessage(
+                phoneNumber,
+                null,
+                parts,
+                sentIntents,
+                deliveredIntents
+            )
+        } else {
+            smsManager.sendTextMessage(
+                phoneNumber,
+                null,
+                message,
+                sentIntents.firstOrNull(),
+                deliveredIntents.firstOrNull()
+            )
+        }
+    }
+
+    private fun createSmsStatusPendingIntent(
+        context: Context,
+        receiverClass: Class<*>,
+        reminderId: String,
+        phoneNumber: String,
+        message: String,
+        partIndex: Int,
+        event: String
+    ): PendingIntent {
+        val intent = Intent(context, receiverClass).apply {
+            action = "text_helper.sms.$event.$reminderId.$partIndex.${System.nanoTime()}"
+            putExtra("reminderId", reminderId)
+            putExtra("phoneNumber", phoneNumber)
+            putExtra("message", message)
+            putExtra("partIndex", partIndex)
+        }
+
+        return PendingIntent.getBroadcast(
+            context,
+            intent.action.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun flutterPrefs(context: Context) =
+        context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+
+    private fun nowIso(): String = Instant.now().toString()
+
+    private fun doNotSendBlockReason(context: Context, contactId: String): String? {
+        if (contactId.isBlank()) {
+            return null
+        }
+
+        val prefs = flutterPrefs(context)
+        val raw = prefs.getString("flutter.text_helper_contact_groups", "[]") ?: "[]"
+        val groups = JSONArray(raw)
+
+        for (index in 0 until groups.length()) {
+            val group = groups.optJSONObject(index) ?: continue
+            if (!group.optBoolean("isBlockedGroup", false)) {
+                continue
+            }
+
+            val contactIds = group.optJSONArray("contactIds") ?: continue
+
+            for (contactIndex in 0 until contactIds.length()) {
+                if (contactIds.optString(contactIndex) == contactId) {
+                    val name = group.optString("name", "Do Not Send")
+                    return "Blocked: contact is in Do Not Send group \"$name\"."
+                }
+            }
+        }
+
+        return null
+    }
 
     private fun rateLimitBlockReason(context: Context): String? {
         val prefs = flutterPrefs(context)
@@ -117,7 +233,6 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
 
         for (index in 0 until array.length()) {
             val item = array.optJSONObject(index) ?: continue
-
             if (item.optString("status") != "sent") {
                 continue
             }
@@ -160,6 +275,7 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
 
         return null
     }
+
     private fun duplicateBlockReason(
         context: Context,
         reminderId: String,
@@ -204,29 +320,6 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
 
         return null
     }
-    private fun hasSendSmsPermission(context: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            context.checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
-    }
-
-    private fun sendSms(phoneNumber: String, message: String) {
-        val smsManager = SmsManager.getDefault()
-        val parts = smsManager.divideMessage(message)
-
-        if (parts.size > 1) {
-            smsManager.sendMultipartTextMessage(phoneNumber, null, parts, null, null)
-        } else {
-            smsManager.sendTextMessage(phoneNumber, null, message, null, null)
-        }
-    }
-
-    private fun flutterPrefs(context: Context) =
-        context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-
-    private fun nowIso(): String = Instant.now().toString()
 
     private fun markReminderSent(context: Context, reminderId: String) {
         val prefs = flutterPrefs(context)
@@ -250,7 +343,6 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
     private fun writeSendLog(
         context: Context,
         reminderId: String,
-        contactName: String,
         phoneNumber: String,
         message: String,
         status: String,
@@ -295,7 +387,7 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
         }
 
         val oldReminderId = originalIntent.getStringExtra("reminderId") ?: return
-        val newReminderId = "-"
+        val newReminderId = "$oldReminderId-next-${System.currentTimeMillis()}"
 
         val prefs = flutterPrefs(context)
         val key = "flutter.text_helper_appointment_reminders"
@@ -375,5 +467,3 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
         }
     }
 }
-
-

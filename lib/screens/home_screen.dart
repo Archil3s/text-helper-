@@ -9,6 +9,7 @@ import 'battery_optimization_screen.dart';
 import 'contact_groups_screen.dart';
 import 'contacts_screen.dart';
 import 'csv_import_export_screen.dart';
+import 'delivery_receipts_screen.dart';
 import 'message_timeline_screen.dart';
 import 'reliability_dashboard_screen.dart';
 import 'send_history_screen.dart';
@@ -50,7 +51,7 @@ class HomeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(28),
               ),
               child: const Text(
-                'Reliable SMS reminders with templates, timeline, CSV tools, groups, queueing, background checks, and backup safety.',
+                'Reliable SMS reminders with receipts, templates, timeline, CSV tools, groups, queueing, background checks, and backup safety.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -67,6 +68,13 @@ class HomeScreen extends StatelessWidget {
               subtitle:
                   'Check permissions, duplicate risk, failures, and background readiness.',
               onTap: () => _open(context, const ReliabilityDashboardScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.check_mark_circled_solid,
+              title: 'Delivery Receipts',
+              subtitle:
+                  'Track sent callbacks and carrier delivery callbacks when available.',
+              onTap: () => _open(context, const DeliveryReceiptsScreen()),
             ),
             _HomeButton(
               icon: CupertinoIcons.text_bubble_fill,
