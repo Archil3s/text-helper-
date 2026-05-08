@@ -156,8 +156,13 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
   - Copy templates to clipboard
   - Placeholder preview added for {name}, {date}, {time}, {location}, and {appointment}
 
-- [ ] Add delivery receipt support if feasible
+- [x] Add delivery receipt support if feasible
   - Keep wording as "Sent to Android SMS service" until real carrier delivery receipts are implemented
+  - Native sent PendingIntent receiver added
+  - Native delivered PendingIntent receiver added
+  - Delivery Receipts screen added to Home
+  - Native receipt events are stored for Flutter UI
+  - App keeps wording as "Sent to Android SMS service" unless real delivery callback is received
 
 - [ ] Add clear SMS-only/MMS policy
   - Avoid users expecting images/video/MMS unless intentionally implemented
@@ -173,6 +178,7 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
 
 
 
