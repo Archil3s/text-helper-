@@ -66,10 +66,13 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
   - Automation send-now and queue runner use RateLimitService
   - Native background receiver blocks sends above rate caps
 
-- [ ] Add Retry Failed Sends
+- [x] Add Retry Failed Sends
   - Retry individual failed messages
   - Retry all failed messages
   - Preserve duplicate/rate-limit safety checks
+  - Retry individual failed sends from Send History
+  - Retry all failed sends from Send History
+  - Retry preserves Test Mode, duplicate protection, and rate-limit checks
 
 - [ ] Add Backup Restore screen
   - Export backup
@@ -130,4 +133,5 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
 
