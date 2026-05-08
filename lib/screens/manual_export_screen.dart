@@ -51,7 +51,8 @@ class ManualExportScreen extends StatelessWidget {
   void _showSendDisabled(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Real SMS sending is disabled. Use manual export for now.'),
+        content:
+            Text('Real SMS sending is disabled. Use manual export for now.'),
         behavior: SnackBarBehavior.floating,
       ),
     );
