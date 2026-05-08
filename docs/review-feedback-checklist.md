@@ -138,9 +138,14 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
   - Background alarm sync writes timeline events
   - Timeline derives status from reminders and send logs
 
-- [ ] Add CSV import/export
+- [x] Add CSV import/export
   - Import contacts/appointments
   - Export reminders/logs
+  - CSV Import / Export screen added to Home
+  - Import contacts from clipboard or pasted CSV
+  - Import reminders/appointments from clipboard or pasted CSV
+  - Export contacts, reminders, and send logs as CSV
+  - Merge or replace import mode added
 
 - [ ] Add Template Manager
   - Create/edit/delete templates
@@ -163,6 +168,7 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
 
 
 
