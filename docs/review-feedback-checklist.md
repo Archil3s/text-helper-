@@ -74,11 +74,16 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
   - Retry all failed sends from Send History
   - Retry preserves Test Mode, duplicate protection, and rate-limit checks
 
-- [ ] Add Backup Restore screen
+- [x] Add Backup Restore screen
   - Export backup
   - Paste/import backup JSON
   - Validate backup version
   - Restore contacts/reminders/logs safely
+  - Backup Restore screen added to Home
+  - Export copies backup JSON to clipboard
+  - Restore from clipboard or pasted JSON
+  - Backup version validation added
+  - Restore supports contacts, reminders, and optional send logs
 
 - [ ] Add Contact Groups UI
   - Create/edit/delete groups
@@ -133,5 +138,6 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
 
 
