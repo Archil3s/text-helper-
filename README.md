@@ -54,6 +54,8 @@ Text Helper is being built around the main complaints from SMS scheduler reviews
 
 - Per-message timeline for queued, synced, triggered, sent, failed, and blocked states
 
+- Template manager with reusable messages and placeholders
+
 ## Still pending
 
 - Battery optimization warning and guidance screen
@@ -67,6 +69,7 @@ Text Helper is being built around the main complaints from SMS scheduler reviews
 See the full checklist for detailed status:
 
 [Review feedback implementation checklist](docs/review-feedback-checklist.md)
+
 
 
 

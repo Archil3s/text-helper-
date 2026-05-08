@@ -12,6 +12,7 @@ import 'csv_import_export_screen.dart';
 import 'message_timeline_screen.dart';
 import 'reliability_dashboard_screen.dart';
 import 'send_history_screen.dart';
+import 'template_manager_screen.dart';
 import 'visual_calendar_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -49,7 +50,7 @@ class HomeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(28),
               ),
               child: const Text(
-                'Reliable SMS reminders with timeline, CSV tools, groups, queueing, background checks, and backup safety.',
+                'Reliable SMS reminders with templates, timeline, CSV tools, groups, queueing, background checks, and backup safety.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -66,6 +67,13 @@ class HomeScreen extends StatelessWidget {
               subtitle:
                   'Check permissions, duplicate risk, failures, and background readiness.',
               onTap: () => _open(context, const ReliabilityDashboardScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.text_bubble_fill,
+              title: 'Template Manager',
+              subtitle:
+                  'Create, edit, copy, and preview message templates with placeholders.',
+              onTap: () => _open(context, const TemplateManagerScreen()),
             ),
             _HomeButton(
               icon: CupertinoIcons.list_bullet,

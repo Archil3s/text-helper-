@@ -147,9 +147,14 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
   - Export contacts, reminders, and send logs as CSV
   - Merge or replace import mode added
 
-- [ ] Add Template Manager
+- [x] Add Template Manager
   - Create/edit/delete templates
   - Placeholder support: {name}, {date}, {time}, {location}, {appointment}
+  - Template Manager screen added to Home
+  - Create/edit/delete custom templates
+  - Duplicate built-in templates
+  - Copy templates to clipboard
+  - Placeholder preview added for {name}, {date}, {time}, {location}, and {appointment}
 
 - [ ] Add delivery receipt support if feasible
   - Keep wording as "Sent to Android SMS service" until real carrier delivery receipts are implemented
@@ -168,6 +173,7 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
 
 
 
