@@ -1,4 +1,4 @@
-﻿# Text Helper â€” Reliable SMS Reminder Automation
+# Text Helper â€” Reliable SMS Reminder Automation
 
 Development branch: `dev/sms-automation-v1`
 

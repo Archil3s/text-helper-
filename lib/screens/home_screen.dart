@@ -12,6 +12,7 @@ import 'contacts_screen.dart';
 import 'csv_import_export_screen.dart';
 import 'delivery_receipts_screen.dart';
 import 'message_timeline_screen.dart';
+import 'notification_channel_test_screen.dart';
 import 'permissions_privacy_screen.dart';
 import 'recipient_audit_preview_screen.dart';
 import 'reliability_dashboard_screen.dart';
@@ -56,7 +57,7 @@ class HomeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(28),
               ),
               child: const Text(
-                'Reliable SMS text reminders with recipient audit, schedule validation, privacy guidance, device setup, receipts, templates, timeline, CSV tools, groups, queueing, background checks, and backup safety.',
+                'Reliable SMS text reminders with recipient audit, schedule validation, privacy guidance, device setup, notification tests, receipts, templates, timeline, CSV tools, groups, queueing, background checks, and backup safety.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -87,6 +88,14 @@ class HomeScreen extends StatelessWidget {
               subtitle:
                   'Validate date/time, recurrence, custom intervals, and sending windows.',
               onTap: () => _open(context, const ScheduleValidationScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.bell_circle_fill,
+              title: 'Notification Sound Test',
+              subtitle:
+                  'Test reminder notification sound, vibration, permission, and channel settings.',
+              onTap: () =>
+                  _open(context, const NotificationChannelTestScreen()),
             ),
             _HomeButton(
               icon: Icons.privacy_tip_outlined,
