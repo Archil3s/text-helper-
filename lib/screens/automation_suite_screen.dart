@@ -9,6 +9,7 @@ import '../models/send_log_entry.dart';
 import '../services/appointment_reminder_store.dart';
 import '../services/automation_settings_store.dart';
 import '../services/native_sms_service.dart';
+import '../services/do_not_send_service.dart';
 import '../services/rate_limit_service.dart';
 import '../services/duplicate_protection_service.dart';
 import '../services/nz_recipient_store.dart';
@@ -30,6 +31,7 @@ class _AutomationSuiteScreenState extends State<AutomationSuiteScreen> {
   final DuplicateProtectionService _duplicateProtection =
       DuplicateProtectionService();
   final RateLimitService _rateLimit = RateLimitService();
+  final DoNotSendService _doNotSend = DoNotSendService();
 
   List<AppointmentReminder> _reminders = <AppointmentReminder>[];
   List<NzSmsRecipient> _contacts = <NzSmsRecipient>[];
@@ -356,7 +358,7 @@ class _AutomationSuiteScreenState extends State<AutomationSuiteScreen> {
                               (item) => DropdownMenuItem<NzSmsRecipient>(
                                 value: item,
                                 child: Text(
-                                    '${item.name} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${item.number}'),
+                                    '${item.name} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ ${item.number}'),
                               ),
                             )
                             .toList(),
@@ -606,6 +608,22 @@ class _AutomationSuiteScreenState extends State<AutomationSuiteScreen> {
       return;
     }
 
+    final doNotSendCheck = await _doNotSend.checkReminder(reminder);
+    if (!doNotSendCheck.allowed) {
+      final reason = doNotSendCheck.reason ?? 'Blocked by Do Not Send group.';
+      await _doNotSend.logBlocked(
+        reminder: reminder,
+        reason: reason,
+      );
+
+      if (mounted) {
+        setState(() {
+          _status = reason;
+        });
+      }
+
+      return;
+    }
     final rateLimitCheck = await _rateLimit.check(reminder);
     if (!rateLimitCheck.allowed) {
       final reason = rateLimitCheck.reason ?? 'Blocked by rate limit.';

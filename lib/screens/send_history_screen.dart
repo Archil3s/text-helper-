@@ -7,6 +7,7 @@ import '../models/send_log_entry.dart';
 import '../services/automation_settings_store.dart';
 import '../services/duplicate_protection_service.dart';
 import '../services/native_sms_service.dart';
+import '../services/do_not_send_service.dart';
 import '../services/nz_recipient_store.dart';
 import '../services/rate_limit_service.dart';
 import '../services/send_log_store.dart';
@@ -26,6 +27,7 @@ class _SendHistoryScreenState extends State<SendHistoryScreen> {
   final DuplicateProtectionService _duplicateProtection =
       DuplicateProtectionService();
   final RateLimitService _rateLimit = RateLimitService();
+  final DoNotSendService _doNotSend = DoNotSendService();
 
   List<SendLogEntry> _logs = <SendLogEntry>[];
   List<NzSmsRecipient> _contacts = <NzSmsRecipient>[];
@@ -146,6 +148,16 @@ class _SendHistoryScreenState extends State<SendHistoryScreen> {
     }
 
     final retryReminder = _retryReminderFromLog(log);
+    final doNotSendCheck = await _doNotSend.checkReminder(retryReminder);
+    if (!doNotSendCheck.allowed) {
+      final reason =
+          doNotSendCheck.reason ?? 'Retry blocked by Do Not Send group.';
+      await _doNotSend.logBlocked(
+        reminder: retryReminder,
+        reason: reason,
+      );
+      return false;
+    }
 
     final rateLimitCheck = await _rateLimit.check(retryReminder);
     if (!rateLimitCheck.allowed) {
