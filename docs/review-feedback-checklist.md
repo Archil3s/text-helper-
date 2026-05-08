@@ -85,10 +85,14 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
   - Backup version validation added
   - Restore supports contacts, reminders, and optional send logs
 
-- [ ] Add Contact Groups UI
+- [x] Add Contact Groups UI
   - Create/edit/delete groups
   - Add/remove contacts from groups
   - Queue messages by group
+  - Contact Groups screen added to Home
+  - Create/edit/delete groups
+  - Add/remove contacts from groups
+  - Queue one message to every contact in a group
 
 - [ ] Enforce Do Not Send hard block
   - Check group membership before sending
@@ -138,6 +142,7 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
 
 
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'automation_suite_screen.dart';
 import 'backup_restore_screen.dart';
 import 'background_service_screen.dart';
+import 'contact_groups_screen.dart';
 import 'contacts_screen.dart';
 import 'reliability_dashboard_screen.dart';
 import 'send_history_screen.dart';
@@ -44,7 +45,7 @@ class HomeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(28),
               ),
               child: const Text(
-                'Reliable SMS reminders with queue, calendar, background checks, and backup safety.',
+                'Reliable SMS reminders with groups, queueing, background checks, and backup safety.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -67,6 +68,13 @@ class HomeScreen extends StatelessWidget {
               title: 'Automation',
               subtitle: 'Schedule, queue, and send reminder texts.',
               onTap: () => _open(context, const AutomationSuiteScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.person_3_fill,
+              title: 'Contact Groups',
+              subtitle:
+                  'Create groups, assign contacts, and queue group texts.',
+              onTap: () => _open(context, const ContactGroupsScreen()),
             ),
             _HomeButton(
               icon: CupertinoIcons.archivebox_fill,
