@@ -1,4 +1,4 @@
-﻿import 'package:flutter/services.dart';
+import 'package:flutter/services.dart';
 
 import '../models/appointment_reminder.dart';
 
@@ -28,6 +28,22 @@ class BackgroundAlarmService {
   Future<void> openExactAlarmSettings() async {
     try {
       await _channel.invokeMethod<void>('openExactAlarmSettings');
+    } catch (_) {}
+  }
+
+  Future<bool> isIgnoringBatteryOptimizations() async {
+    try {
+      final result =
+          await _channel.invokeMethod<bool>('isIgnoringBatteryOptimizations');
+      return result ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> openBatteryOptimizationSettings() async {
+    try {
+      await _channel.invokeMethod<void>('openBatteryOptimizationSettings');
     } catch (_) {}
   }
 

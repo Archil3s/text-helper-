@@ -116,9 +116,14 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
   - Queue test text step added
   - Sync background alarms step added
 
-- [ ] Add Battery Optimization warning
+- [x] Add Battery Optimization warning
   - Explain that some phones delay/kill background alarms
   - Give user setup guidance
+  - Battery Optimization screen added to Home
+  - Native Android battery optimization status check added
+  - Android battery optimization settings button added
+  - User warning and reviewed state added
+  - Guidance for force-stop and manufacturer battery managers added
 
 - [ ] Add per-message status timeline
   - Queued
@@ -153,6 +158,7 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
 
 
 
