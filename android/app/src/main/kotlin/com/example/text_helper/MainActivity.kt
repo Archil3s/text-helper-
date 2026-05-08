@@ -1,8 +1,13 @@
-﻿package com.example.text_helper
+package com.example.text_helper
 
 import android.Manifest
 import android.app.AlarmManager
 import android.app.PendingIntent
+import android.media.RingtoneManager
+import android.media.AudioAttributes
+import android.app.NotificationManager
+import android.app.NotificationChannel
+import android.app.Notification
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -17,12 +22,17 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val nativeSmsChannelName = "text_helper/native_sms"
     private val backgroundAlarmChannelName = "text_helper/background_alarm"
+    private val notificationChannelName = "text_helper/notification_channel"
+    private val reminderNotificationChannelId = "text_helper_reminders"
+    private val reminderNotificationId = 23001
+    private val postNotificationsPermission = "android.permission.POST_NOTIFICATIONS"
 
     private var pendingSmsResult: MethodChannel.Result? = null
     private var pendingPhoneNumber: String? = null
     private var pendingMessage: String? = null
     private var pendingReminderId: String? = null
     private var pendingPermissionResult: MethodChannel.Result? = null
+    private var pendingNotificationPermissionResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -74,6 +84,36 @@ class MainActivity : FlutterActivity() {
                 }
                 "cancelAllBackgroundAlarms" -> {
                     cancelAllBackgroundAlarms()
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            notificationChannelName
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getNotificationDiagnostics" -> {
+                    result.success(getNotificationDiagnostics())
+                }
+                "createReminderNotificationChannel" -> {
+                    createReminderNotificationChannel()
+                    result.success(getNotificationDiagnostics())
+                }
+                "requestPostNotificationsPermission" -> {
+                    requestPostNotificationsPermission(result)
+                }
+                "sendTestReminderNotification" -> {
+                    result.success(sendTestReminderNotification())
+                }
+                "openNotificationSettings" -> {
+                    openNotificationSettings()
+                    result.success(null)
+                }
+                "openReminderNotificationChannelSettings" -> {
+                    openReminderNotificationChannelSettings()
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -260,6 +300,219 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun createReminderNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return
+        }
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        val existingChannel =
+            notificationManager.getNotificationChannel(reminderNotificationChannelId)
+
+        if (existingChannel != null) {
+            return
+        }
+
+        val defaultSoundUri =
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+
+        val channel = NotificationChannel(
+            reminderNotificationChannelId,
+            "Reminder tests",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description =
+                "Test reminder notification sound and vibration for Text Helper."
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 250, 120, 250)
+            setSound(defaultSoundUri, audioAttributes)
+        }
+
+        notificationManager.createNotificationChannel(channel)
+    }
+
+    private fun hasPostNotificationsPermission(): Boolean {
+        if (Build.VERSION.SDK_INT < 33) {
+            return true
+        }
+
+        return checkSelfPermission(postNotificationsPermission) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requestPostNotificationsPermission(result: MethodChannel.Result) {
+        if (hasPostNotificationsPermission()) {
+            result.success(true)
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            pendingNotificationPermissionResult = result
+            requestPermissions(arrayOf(postNotificationsPermission), 9003)
+        } else {
+            result.success(true)
+        }
+    }
+
+    private fun areAppNotificationsEnabled(
+        notificationManager: NotificationManager
+    ): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            return notificationManager.areNotificationsEnabled()
+        }
+
+        return true
+    }
+
+    private fun isReminderChannelEnabled(
+        notificationManager: NotificationManager
+    ): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return true
+        }
+
+        val channel =
+            notificationManager.getNotificationChannel(reminderNotificationChannelId)
+                ?: return false
+
+        return channel.importance != NotificationManager.IMPORTANCE_NONE
+    }
+
+    private fun describeNotificationImportance(importance: Int): String {
+        return when (importance) {
+            NotificationManager.IMPORTANCE_NONE -> "blocked"
+            NotificationManager.IMPORTANCE_MIN -> "silent"
+            NotificationManager.IMPORTANCE_LOW -> "low"
+            NotificationManager.IMPORTANCE_DEFAULT -> "default"
+            NotificationManager.IMPORTANCE_HIGH -> "high"
+            NotificationManager.IMPORTANCE_MAX -> "urgent"
+            else -> "unknown"
+        }
+    }
+
+    private fun getNotificationDiagnostics(): Map<String, Any> {
+        createReminderNotificationChannel()
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        val notificationsEnabled = areAppNotificationsEnabled(notificationManager)
+        val permissionGranted = hasPostNotificationsPermission()
+
+        val channelCreated: Boolean
+        val channelEnabled: Boolean
+        val channelImportance: String
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel =
+                notificationManager.getNotificationChannel(reminderNotificationChannelId)
+            channelCreated = channel != null
+            channelEnabled =
+                channel != null && channel.importance != NotificationManager.IMPORTANCE_NONE
+            channelImportance = if (channel == null) {
+                "missing"
+            } else {
+                describeNotificationImportance(channel.importance)
+            }
+        } else {
+            channelCreated = true
+            channelEnabled = true
+            channelImportance = "not_required"
+        }
+
+        return mapOf(
+            "apiLevel" to Build.VERSION.SDK_INT,
+            "permissionGranted" to permissionGranted,
+            "notificationsEnabled" to notificationsEnabled,
+            "channelCreated" to channelCreated,
+            "channelEnabled" to channelEnabled,
+            "channelImportance" to channelImportance
+        )
+    }
+
+    private fun sendTestReminderNotification(): Boolean {
+        createReminderNotificationChannel()
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+
+        if (!hasPostNotificationsPermission()) {
+            return false
+        }
+
+        if (!areAppNotificationsEnabled(notificationManager)) {
+            return false
+        }
+
+        if (!isReminderChannelEnabled(notificationManager)) {
+            return false
+        }
+
+        val notificationBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, reminderNotificationChannelId)
+        } else {
+            Notification.Builder(this)
+        }
+
+        val notification = notificationBuilder
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Text Helper reminder test")
+            .setContentText("If you heard a sound or felt vibration, reminder alerts are working.")
+            .setStyle(
+                Notification.BigTextStyle().bigText(
+                    "If you heard a sound or felt vibration, reminder alerts are working. If not, open notification settings and check sound, vibration, and channel status."
+                )
+            )
+            .setAutoCancel(true)
+            .setWhen(System.currentTimeMillis())
+            .setShowWhen(true)
+            .setPriority(Notification.PRIORITY_HIGH)
+            .setDefaults(Notification.DEFAULT_SOUND or Notification.DEFAULT_VIBRATE)
+            .build()
+
+        notificationManager.notify(reminderNotificationId, notification)
+        return true
+    }
+
+    private fun openNotificationSettings() {
+        try {
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                }
+            } else {
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+            }
+
+            startActivity(intent)
+        } catch (error: Exception) {
+            val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            startActivity(fallback)
+        }
+    }
+
+    private fun openReminderNotificationChannelSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            openNotificationSettings()
+            return
+        }
+
+        try {
+            val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                putExtra(Settings.EXTRA_CHANNEL_ID, reminderNotificationChannelId)
+            }
+            startActivity(intent)
+        } catch (error: Exception) {
+            openNotificationSettings()
+        }
+    }
+
     private fun syncBackgroundAlarms(alarms: List<Map<String, Any?>>): Int {
         cancelAllBackgroundAlarms()
 
@@ -362,6 +615,12 @@ class MainActivity : FlutterActivity() {
 
         val granted = grantResults.isNotEmpty() &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
+
+        if (requestCode == 9003) {
+            pendingNotificationPermissionResult?.success(granted)
+            pendingNotificationPermissionResult = null
+            return
+        }
 
         if (requestCode == 9002) {
             pendingPermissionResult?.success(granted)
