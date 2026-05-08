@@ -21,6 +21,7 @@ class MainActivity : FlutterActivity() {
     private var pendingSmsResult: MethodChannel.Result? = null
     private var pendingPhoneNumber: String? = null
     private var pendingMessage: String? = null
+    private var pendingReminderId: String? = null
     private var pendingPermissionResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -34,13 +35,15 @@ class MainActivity : FlutterActivity() {
                 "sendSms" -> {
                     val phoneNumber = call.argument<String>("phoneNumber")
                     val message = call.argument<String>("message")
+                    val reminderId =
+                        call.argument<String>("reminderId") ?: "manual-${System.nanoTime()}"
 
                     if (phoneNumber.isNullOrBlank() || message.isNullOrBlank()) {
                         result.error("INVALID_ARGUMENTS", "Phone number and message are required.", null)
                         return@setMethodCallHandler
                     }
 
-                    sendSmsWithPermission(phoneNumber, message, result)
+                    sendSmsWithPermission(phoneNumber, message, reminderId, result)
                 }
                 else -> result.notImplemented()
             }
@@ -55,6 +58,13 @@ class MainActivity : FlutterActivity() {
                 "canScheduleExactAlarms" -> result.success(canScheduleExactAlarms())
                 "openExactAlarmSettings" -> {
                     openExactAlarmSettings()
+                    result.success(null)
+                }
+                "isIgnoringBatteryOptimizations" -> {
+                    result.success(isIgnoringBatteryOptimizations())
+                }
+                "openBatteryOptimizationSettings" -> {
+                    openBatteryOptimizationSettings()
                     result.success(null)
                 }
                 "syncBackgroundAlarms" -> {
@@ -96,10 +106,11 @@ class MainActivity : FlutterActivity() {
     private fun sendSmsWithPermission(
         phoneNumber: String,
         message: String,
+        reminderId: String,
         result: MethodChannel.Result
     ) {
         if (hasSendSmsPermission()) {
-            sendSmsNow(phoneNumber, message, result)
+            sendSmsNow(phoneNumber, message, reminderId, result)
             return
         }
 
@@ -107,6 +118,7 @@ class MainActivity : FlutterActivity() {
             pendingSmsResult = result
             pendingPhoneNumber = phoneNumber
             pendingMessage = message
+            pendingReminderId = reminderId
             requestPermissions(arrayOf(Manifest.permission.SEND_SMS), 9001)
         } else {
             result.error("PERMISSION_DENIED", "SMS permission denied.", null)
@@ -116,22 +128,92 @@ class MainActivity : FlutterActivity() {
     private fun sendSmsNow(
         phoneNumber: String,
         message: String,
+        reminderId: String,
         result: MethodChannel.Result
     ) {
         try {
-            val smsManager = SmsManager.getDefault()
-            val parts = smsManager.divideMessage(message)
-
-            if (parts.size > 1) {
-                smsManager.sendMultipartTextMessage(phoneNumber, null, parts, null, null)
-            } else {
-                smsManager.sendTextMessage(phoneNumber, null, message, null, null)
-            }
-
+            sendSmsWithReceipts(phoneNumber, message, reminderId)
             result.success(true)
         } catch (error: Exception) {
             result.error("SEND_FAILED", error.message, null)
         }
+    }
+
+    private fun sendSmsWithReceipts(
+        phoneNumber: String,
+        message: String,
+        reminderId: String
+    ) {
+        val smsManager = SmsManager.getDefault()
+        val parts = smsManager.divideMessage(message)
+        val sentIntents = ArrayList<PendingIntent>()
+        val deliveredIntents = ArrayList<PendingIntent>()
+
+        for (index in parts.indices) {
+            sentIntents.add(
+                createSmsStatusPendingIntent(
+                    receiverClass = SmsSentReceiver::class.java,
+                    reminderId = reminderId,
+                    phoneNumber = phoneNumber,
+                    message = message,
+                    partIndex = index,
+                    event = "sent"
+                )
+            )
+
+            deliveredIntents.add(
+                createSmsStatusPendingIntent(
+                    receiverClass = SmsDeliveredReceiver::class.java,
+                    reminderId = reminderId,
+                    phoneNumber = phoneNumber,
+                    message = message,
+                    partIndex = index,
+                    event = "delivered"
+                )
+            )
+        }
+
+        if (parts.size > 1) {
+            smsManager.sendMultipartTextMessage(
+                phoneNumber,
+                null,
+                parts,
+                sentIntents,
+                deliveredIntents
+            )
+        } else {
+            smsManager.sendTextMessage(
+                phoneNumber,
+                null,
+                message,
+                sentIntents.firstOrNull(),
+                deliveredIntents.firstOrNull()
+            )
+        }
+    }
+
+    private fun createSmsStatusPendingIntent(
+        receiverClass: Class<*>,
+        reminderId: String,
+        phoneNumber: String,
+        message: String,
+        partIndex: Int,
+        event: String
+    ): PendingIntent {
+        val intent = Intent(this, receiverClass).apply {
+            action = "text_helper.sms.$event.$reminderId.$partIndex.${System.nanoTime()}"
+            putExtra("reminderId", reminderId)
+            putExtra("phoneNumber", phoneNumber)
+            putExtra("message", message)
+            putExtra("partIndex", partIndex)
+        }
+
+        return PendingIntent.getBroadcast(
+            this,
+            intent.action.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun canScheduleExactAlarms(): Boolean {
@@ -147,7 +229,7 @@ class MainActivity : FlutterActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val intent = Intent(
                 Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                Uri.parse("package:com.example.text_helper")
+                Uri.parse("package:$packageName")
             )
             startActivity(intent)
         }
@@ -177,6 +259,7 @@ class MainActivity : FlutterActivity() {
             startActivity(intent)
         }
     }
+
     private fun syncBackgroundAlarms(alarms: List<Map<String, Any?>>): Int {
         cancelAllBackgroundAlarms()
 
@@ -293,20 +376,21 @@ class MainActivity : FlutterActivity() {
         val result = pendingSmsResult
         val phoneNumber = pendingPhoneNumber
         val message = pendingMessage
+        val reminderId = pendingReminderId
 
         pendingSmsResult = null
         pendingPhoneNumber = null
         pendingMessage = null
+        pendingReminderId = null
 
-        if (result == null || phoneNumber == null || message == null) {
+        if (result == null || phoneNumber == null || message == null || reminderId == null) {
             return
         }
 
         if (granted) {
-            sendSmsNow(phoneNumber, message, result)
+            sendSmsNow(phoneNumber, message, reminderId, result)
         } else {
             result.error("PERMISSION_DENIED", "SMS permission denied.", null)
         }
     }
 }
-
