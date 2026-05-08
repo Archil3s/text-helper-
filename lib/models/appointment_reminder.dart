@@ -2,7 +2,7 @@ class AppointmentReminder {
   const AppointmentReminder({
     required this.id,
     required this.contactId,
-    required this.contactName,
+    String? contactName,
     required this.phoneNumber,
     required this.appointmentTitle,
     required this.location,
@@ -17,7 +17,6 @@ class AppointmentReminder {
 
   final String id;
   final String contactId;
-  final String contactName;
   final String phoneNumber;
   final String appointmentTitle;
   final String location;
@@ -29,11 +28,14 @@ class AppointmentReminder {
   final DateTime? sentAt;
   final String? notes;
 
+  /// Backwards-compatible UI label.
+  /// This is NOT persisted and does not store the contact's real name.
+  String get contactName => phoneNumber.isEmpty ? 'Contact' : phoneNumber;
+
   factory AppointmentReminder.fromJson(Map<String, dynamic> json) {
     return AppointmentReminder(
       id: json['id'] as String? ?? '',
       contactId: json['contactId'] as String? ?? '',
-      contactName: json['contactName'] as String? ?? 'Unknown',
       phoneNumber: json['phoneNumber'] as String? ?? '',
       appointmentTitle: json['appointmentTitle'] as String? ?? 'Appointment',
       location: json['location'] as String? ?? '',
@@ -52,7 +54,6 @@ class AppointmentReminder {
     return {
       'id': id,
       'contactId': contactId,
-      'contactName': contactName,
       'phoneNumber': phoneNumber,
       'appointmentTitle': appointmentTitle,
       'location': location,
@@ -84,7 +85,6 @@ class AppointmentReminder {
     return AppointmentReminder(
       id: id ?? this.id,
       contactId: contactId ?? this.contactId,
-      contactName: contactName ?? this.contactName,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       appointmentTitle: appointmentTitle ?? this.appointmentTitle,
       location: location ?? this.location,

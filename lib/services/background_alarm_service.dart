@@ -1,4 +1,4 @@
-import 'package:flutter/services.dart';
+﻿import 'package:flutter/services.dart';
 
 import '../models/appointment_reminder.dart';
 
@@ -37,7 +37,6 @@ class BackgroundAlarmService {
         'alarmId': reminder.id,
         'reminderId': reminder.id,
         'contactId': reminder.contactId,
-        'contactName': reminder.contactName,
         'phoneNumber': reminder.phoneNumber,
         'appointmentTitle': reminder.appointmentTitle,
         'location': reminder.location,
