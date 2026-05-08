@@ -1,4 +1,13 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+﻿<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="sms" />
+        </intent>
+    </queries>
+
     <application
         android:label="text_helper"
         android:name="${applicationName}"
@@ -30,6 +39,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+    
+        <receiver
+            android:name=".BackgroundSmsReceiver"
+            android:enabled="true"
+            android:exported="false" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -43,3 +57,6 @@
         </intent>
     </queries>
 </manifest>
+
+
+
