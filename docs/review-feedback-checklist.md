@@ -1,4 +1,4 @@
-# Review feedback implementation checklist
+﻿# Review feedback implementation checklist
 
 This checklist tracks the major complaints found in competing SMS scheduler reviews and what Text Helper has or still needs.
 
@@ -58,10 +58,13 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
 
 ## Still to build / wire into product
 
-- [ ] Wire rate-limit checks into every send path
+- [x] Wire rate-limit checks into every send path
   - Automation send-now path
   - Queue runner path
   - Native background receiver path
+  - Rate-limit checks now run before SMS send attempts
+  - Automation send-now and queue runner use RateLimitService
+  - Native background receiver blocks sends above rate caps
 
 - [ ] Add Retry Failed Sends
   - Retry individual failed messages
@@ -127,3 +130,4 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
