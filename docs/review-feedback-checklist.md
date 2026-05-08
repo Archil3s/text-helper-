@@ -103,12 +103,18 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
   - Native background receiver checks Do Not Send groups before sending
   - Blocked sends are logged clearly
 
-- [ ] Add Background Health Wizard UI
+- [x] Add Background Health Wizard UI
   - Step 1: SMS permission
   - Step 2: Exact alarm permission
   - Step 3: Battery optimization warning
   - Step 4: Queue a test text
   - Step 5: Sync background alarms
+  - Background Wizard screen added to Home
+  - SMS permission step added
+  - Exact alarm settings step added
+  - Battery warning review step added
+  - Queue test text step added
+  - Sync background alarms step added
 
 - [ ] Add Battery Optimization warning
   - Explain that some phones delay/kill background alarms
@@ -147,6 +153,7 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
 
 
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'automation_suite_screen.dart';
 import 'backup_restore_screen.dart';
+import 'background_health_wizard_screen.dart';
 import 'background_service_screen.dart';
 import 'contact_groups_screen.dart';
 import 'contacts_screen.dart';
@@ -62,6 +63,13 @@ class HomeScreen extends StatelessWidget {
               subtitle:
                   'Check permissions, duplicate risk, failures, and background readiness.',
               onTap: () => _open(context, const ReliabilityDashboardScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.list_bullet_indent,
+              title: 'Background Wizard',
+              subtitle:
+                  'Step through SMS permission, alarm setup, test queueing, and sync.',
+              onTap: () => _open(context, const BackgroundHealthWizardScreen()),
             ),
             _HomeButton(
               icon: CupertinoIcons.gear_alt_fill,
