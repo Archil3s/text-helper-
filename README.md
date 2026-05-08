@@ -58,6 +58,33 @@ Text Helper is being built around the main complaints from SMS scheduler reviews
 
 - Delivery receipt support using Android sent/delivered callbacks where carrier/device supports it
 
+
+## SMS-only / MMS policy
+
+Text Helper currently sends SMS text messages only.
+
+Supported:
+
+- Plain SMS text reminders
+- Appointment reminders
+- Follow-up texts
+- Confirmation texts
+- Scheduled text-only messages
+
+Not supported yet:
+
+- MMS
+- Images
+- Videos
+- Audio files
+- PDFs
+- Contact cards
+- GIFs, stickers, or other media attachments
+
+The app should use “Sent to Android SMS service” unless a real carrier/device delivery callback is received. It should not claim “Delivered” unless Android provides a delivery receipt.
+
+- SMS-only policy screen clarifying that MMS/media is not supported yet
+
 ## Still pending
 
 - Battery optimization warning and guidance screen
@@ -71,6 +98,7 @@ Text Helper is being built around the main complaints from SMS scheduler reviews
 See the full checklist for detailed status:
 
 [Review feedback implementation checklist](docs/review-feedback-checklist.md)
+
 
 
 

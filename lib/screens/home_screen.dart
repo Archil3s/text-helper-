@@ -13,6 +13,7 @@ import 'delivery_receipts_screen.dart';
 import 'message_timeline_screen.dart';
 import 'reliability_dashboard_screen.dart';
 import 'send_history_screen.dart';
+import 'sms_policy_screen.dart';
 import 'template_manager_screen.dart';
 import 'visual_calendar_screen.dart';
 
@@ -51,7 +52,7 @@ class HomeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(28),
               ),
               child: const Text(
-                'Reliable SMS reminders with receipts, templates, timeline, CSV tools, groups, queueing, background checks, and backup safety.',
+                'Reliable SMS text reminders with receipts, templates, timeline, CSV tools, groups, queueing, background checks, and backup safety.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -68,6 +69,13 @@ class HomeScreen extends StatelessWidget {
               subtitle:
                   'Check permissions, duplicate risk, failures, and background readiness.',
               onTap: () => _open(context, const ReliabilityDashboardScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.chat_bubble_text_fill,
+              title: 'SMS / MMS Policy',
+              subtitle:
+                  'Clarifies that Text Helper sends SMS text only, not MMS/media.',
+              onTap: () => _open(context, const SmsPolicyScreen()),
             ),
             _HomeButton(
               icon: CupertinoIcons.check_mark_circled_solid,
