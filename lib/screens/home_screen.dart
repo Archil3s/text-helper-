@@ -8,6 +8,7 @@ import 'background_service_screen.dart';
 import 'battery_optimization_screen.dart';
 import 'contact_groups_screen.dart';
 import 'contacts_screen.dart';
+import 'csv_import_export_screen.dart';
 import 'message_timeline_screen.dart';
 import 'reliability_dashboard_screen.dart';
 import 'send_history_screen.dart';
@@ -48,7 +49,7 @@ class HomeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(28),
               ),
               child: const Text(
-                'Reliable SMS reminders with timeline, groups, queueing, background checks, and backup safety.',
+                'Reliable SMS reminders with timeline, CSV tools, groups, queueing, background checks, and backup safety.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -67,11 +68,18 @@ class HomeScreen extends StatelessWidget {
               onTap: () => _open(context, const ReliabilityDashboardScreen()),
             ),
             _HomeButton(
-              icon: CupertinoIcons.timeline_selection,
+              icon: CupertinoIcons.list_bullet,
               title: 'Message Timeline',
               subtitle:
                   'Track queued, synced, triggered, sent, failed, and blocked events.',
               onTap: () => _open(context, const MessageTimelineScreen()),
+            ),
+            _HomeButton(
+              icon: Icons.table_chart_outlined,
+              title: 'CSV Import / Export',
+              subtitle:
+                  'Import contacts and reminders, or export contacts, reminders, and logs.',
+              onTap: () => _open(context, const CsvImportExportScreen()),
             ),
             _HomeButton(
               icon: CupertinoIcons.battery_25,
