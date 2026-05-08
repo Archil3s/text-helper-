@@ -6,6 +6,7 @@ import '../models/nz_sms_recipient.dart';
 import '../services/appointment_reminder_store.dart';
 import '../services/automation_settings_store.dart';
 import '../services/background_alarm_service.dart';
+import '../services/do_not_send_service.dart';
 import '../services/nz_recipient_store.dart';
 
 class BackgroundServiceScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _BackgroundServiceScreenState extends State<BackgroundServiceScreen> {
   final NzRecipientStore _recipientStore = NzRecipientStore();
   final AutomationSettingsStore _settingsStore = AutomationSettingsStore();
   final BackgroundAlarmService _alarmService = BackgroundAlarmService();
+  final DoNotSendService _doNotSend = DoNotSendService();
 
   List<AppointmentReminder> _queued = <AppointmentReminder>[];
   List<NzSmsRecipient> _contacts = <NzSmsRecipient>[];
@@ -106,8 +108,26 @@ class _BackgroundServiceScreenState extends State<BackgroundServiceScreen> {
   Future<void> _syncBackgroundAlarms() async {
     setState(() => _busy = true);
 
-    final allowed = _queued.where(_allowedByTestMode).toList();
-    final blocked = _queued.length - allowed.length;
+    final testModeAllowed = _queued.where(_allowedByTestMode).toList();
+    final allowed = <AppointmentReminder>[];
+    var blockedByDoNotSend = 0;
+
+    for (final reminder in testModeAllowed) {
+      final doNotSendCheck = await _doNotSend.checkReminder(reminder);
+
+      if (doNotSendCheck.allowed) {
+        allowed.add(reminder);
+      } else {
+        blockedByDoNotSend += 1;
+        await _doNotSend.logBlocked(
+          reminder: reminder,
+          reason: doNotSendCheck.reason ?? 'Blocked by Do Not Send group.',
+        );
+      }
+    }
+
+    final blocked =
+        (_queued.length - testModeAllowed.length) + blockedByDoNotSend;
 
     try {
       final count = await _alarmService.syncQueuedTexts(allowed);

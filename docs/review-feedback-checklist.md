@@ -94,9 +94,14 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
   - Add/remove contacts from groups
   - Queue one message to every contact in a group
 
-- [ ] Enforce Do Not Send hard block
+- [x] Enforce Do Not Send hard block
   - Check group membership before sending
   - Log blocked sends clearly
+  - Automation blocks Do Not Send contacts before sending
+  - Retry blocks Do Not Send contacts before sending
+  - Background Scheduler filters Do Not Send contacts before alarm sync
+  - Native background receiver checks Do Not Send groups before sending
+  - Blocked sends are logged clearly
 
 - [ ] Add Background Health Wizard UI
   - Step 1: SMS permission
@@ -142,6 +147,7 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
 
 
 
