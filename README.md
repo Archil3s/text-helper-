@@ -85,6 +85,30 @@ The app should use “Sent to Android SMS service” unless a real carrier/devic
 
 - SMS-only policy screen clarifying that MMS/media is not supported yet
 
+
+## Permissions and Privacy explanation
+
+Text Helper includes an in-app Permissions & Privacy screen explaining:
+
+- why SMS permission is needed
+- why exact alarm/background scheduling permissions are needed
+- why battery optimization settings affect closed-app sending
+- what data stays local on the device
+- that contact names are stored in the contacts model/store only
+- why antivirus tools may warn about apps that can send SMS or run background alarms
+
+## Brand-specific background setup guides
+
+Text Helper includes device setup guides for:
+
+- Samsung / Galaxy
+- Xiaomi / Redmi / POCO
+- Oppo / Realme / OnePlus
+- Vivo / iQOO
+- Huawei / Honor
+
+The guides cover battery optimization, auto-start, sleeping apps, app launch management, background activity, notifications, lock-screen behavior, and closed-app testing.
+
 ## Still pending
 
 - Battery optimization warning and guidance screen
@@ -98,6 +122,7 @@ The app should use “Sent to Android SMS service” unless a real carrier/devic
 See the full checklist for detailed status:
 
 [Review feedback implementation checklist](docs/review-feedback-checklist.md)
+
 
 
 

@@ -1,4 +1,4 @@
-# Review feedback implementation checklist
+﻿# Review feedback implementation checklist
 
 This checklist tracks the major complaints found in competing SMS scheduler reviews and what Text Helper has or still needs.
 
@@ -174,38 +174,34 @@ This checklist tracks the major complaints found in competing SMS scheduler revi
 
 ## Ranked post-release complaint backlog
 
-These are ranked by review frequency, trust impact, and risk of users uninstalling or requesting refunds.
+These are ranked by review frequency, trust impact, and risk of users uninstalling or requesting refunds. Support-ticket/refund workflow is intentionally parked for now.
 
-1. - [ ] Add Support Center and refund/help route
-   - In-app support screen with email/support link
-   - Copyable diagnostic summary
-   - Refund guidance for paid users
-   - Clear route for bug reports, screenshots, and test evidence
-   - Addresses repeated complaints about no response from support and no clear refund path
-
-2. - [ ] Add Permissions and Privacy explanation screen
+1. - [x] Add Permissions and Privacy explanation screen
    - Explain why SMS permission is needed
    - Explain background alarm/battery permissions
    - Explain what data stays local
    - Explain that contact names are stored only in contacts
    - Explain why antivirus apps may warn about SMS/background capability
+   - Permissions & Privacy screen added to Home
+   - Reviewed state added
 
-3. - [ ] Add brand-specific background setup guides
+2. - [x] Add brand-specific background setup guides
    - Samsung guide
    - Xiaomi/Redmi/POCO guide
    - Oppo/Realme/OnePlus guide
    - Vivo guide
    - Huawei/Honor guide
    - Include battery optimization, auto-start, sleeping apps, app launch, and lock-screen behavior
+   - Device Setup Guides screen added to Home
 
-4. - [ ] Add recipient confirmation and send audit preview
+3. - [ ] Add recipient confirmation and send audit preview
    - Preview every recipient before queueing/sending
    - Show contact name, phone number, group, test/live state, and final message
    - Warn about empty or suspicious phone numbers
    - Warn about country-code normalization changes
    - Reduce wrong-recipient, wrong-group, and random-contact complaints
 
-5. - [ ] Add schedule validation and advanced repeat builder
+4. - [ ] Add schedule validation and advanced repeat builder
    - Validate final scheduled date/time before saving
    - Show next 5 occurrences for recurring messages
    - Add custom interval builder
@@ -213,33 +209,33 @@ These are ranked by review frequency, trust impact, and risk of users uninstalli
    - Add 12-hour/24-hour display preference
    - Warn when selected time is in the past or shifted by device settings
 
-6. - [ ] Add notification sound and reminder channel test
+5. - [ ] Add notification sound and reminder channel test
    - Test reminder notification channel
    - Test notification sound/vibration
    - Link to Android notification settings
    - Show whether notifications are blocked
    - Address complaints about reminder sound or popups stopping after updates
 
-7. - [ ] Add purchase restore and pricing clarity screen
+6. - [ ] Add purchase restore and pricing clarity screen
    - Restore purchase entry point
    - Clear free vs paid capability table
    - Trial status explanation
    - Subscription cancellation guidance
    - No-ads/paid-status diagnostics if billing is later added
 
-8. - [ ] Add crash, freeze, and diagnostics export bundle
+7. - [ ] Add crash, freeze, and diagnostics export bundle
    - Export device/app diagnostic report
    - Include Android version, manufacturer, battery status, permission status, queue count, failed logs, and background health
    - Add one-tap copy for support
    - Add local crash/failure notes for lag/freeze reports
 
-9. - [ ] Add RCS and WhatsApp expectation policy or roadmap
+8. - [ ] Add RCS and WhatsApp expectation policy or roadmap
    - Clearly state SMS support boundaries
    - Clearly state RCS is not controlled by this app unless explicitly implemented
    - Clearly state WhatsApp automation is not currently part of SMS scheduling
    - Prevent false expectation from users looking for WhatsApp/RCS auto-replies
 
-10. - [ ] Add bulk-send safety and large import limits
+9. - [ ] Add bulk-send safety and large import limits
    - Select-all contacts/group tooling
    - Batch progress UI
    - Estimated duration before sending
@@ -247,19 +243,18 @@ These are ranked by review frequency, trust impact, and risk of users uninstalli
    - Large CSV import warnings
    - Guardrails for hundreds/thousands of recipients
 
-11. - [ ] Add update-safe migration checks
+10. - [ ] Add update-safe migration checks
    - Versioned local data migrations
    - Pre-update backup reminder
    - Detect empty data after app version changes
    - Restore prompts if reminders or contacts disappear unexpectedly
    - Prevent scheduled reminders being wiped after updates
 
-12. - [ ] Add ads/no-ads product policy
+11. - [ ] Add ads/no-ads product policy
    - State whether the app has ads or is ad-free
    - If ads are ever added, avoid full-screen blocking ads during critical scheduling flows
    - Never show ads over send/queue confirmation screens
    - Avoid loud/video ads in appointment/reminder workflows
-
 ## Release gate
 
 Before release/android-beta-v1:
@@ -271,3 +266,4 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
