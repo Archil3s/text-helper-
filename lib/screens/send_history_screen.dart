@@ -5,6 +5,7 @@ import '../models/appointment_reminder.dart';
 import '../models/nz_sms_recipient.dart';
 import '../models/send_log_entry.dart';
 import '../services/automation_settings_store.dart';
+import '../services/delivery_status_mapper.dart';
 import '../services/duplicate_protection_service.dart';
 import '../services/native_sms_service.dart';
 import '../services/do_not_send_service.dart';
@@ -62,15 +63,21 @@ class _SendHistoryScreenState extends State<SendHistoryScreen> {
   }
 
   List<SendLogEntry> get _failedLogs {
-    return _logs.where((log) => log.status == 'failed').toList();
+    return _logs
+        .where((log) => DeliveryStatusMapper.isFailed(log.status))
+        .toList();
   }
 
   List<SendLogEntry> get _blockedLogs {
-    return _logs.where((log) => log.status == 'blocked').toList();
+    return _logs
+        .where((log) => DeliveryStatusMapper.isBlocked(log.status))
+        .toList();
   }
 
   List<SendLogEntry> get _sentLogs {
-    return _logs.where((log) => log.status == 'sent').toList();
+    return _logs
+        .where((log) => DeliveryStatusMapper.isSentToAndroid(log.status))
+        .toList();
   }
 
   NzSmsRecipient? _contactForNumber(String phoneNumber) {
@@ -283,21 +290,11 @@ class _SendHistoryScreenState extends State<SendHistoryScreen> {
   }
 
   Color _color(String status) {
-    return switch (status) {
-      'sent' => const Color(0xFF16A34A),
-      'blocked' => const Color(0xFFF97316),
-      'failed' => const Color(0xFFEF4444),
-      _ => const Color(0xFF0A84FF),
-    };
+    return DeliveryStatusMapper.color(status);
   }
 
   IconData _icon(String status) {
-    return switch (status) {
-      'sent' => CupertinoIcons.check_mark_circled_solid,
-      'blocked' => CupertinoIcons.shield_fill,
-      'failed' => CupertinoIcons.xmark_circle_fill,
-      _ => CupertinoIcons.info_circle_fill,
-    };
+    return DeliveryStatusMapper.icon(status);
   }
 
   @override
@@ -478,7 +475,7 @@ class _HistoryHero extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Review sent, failed, blocked, and retryable messages.',
+            'Review Android-accepted, delivered, failed, blocked, and retryable messages.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.75),
               height: 1.35,
@@ -622,7 +619,7 @@ class _LogCard extends StatelessWidget {
             ),
           ),
           Text(
-            log.status.toUpperCase(),
+            DeliveryStatusMapper.label(log.status).toUpperCase(),
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w900,
