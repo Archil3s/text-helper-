@@ -259,6 +259,7 @@ if ($installAndLaunchOnPhone) {
 
     Write-Host "Waking phone screen..."
     & $adb shell input keyevent KEYCODE_WAKEUP
+    & $adb shell wm dismiss-keyguard
     Start-Sleep -Seconds 1
 
     Write-Host "Launching fresh app instance on phone..."
