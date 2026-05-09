@@ -2,8 +2,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../models/nz_sms_recipient.dart';
+import '../models/send_log_entry.dart';
+import '../services/message_timeline_service.dart';
 import '../services/native_sms_service.dart';
 import '../services/nz_recipient_store.dart';
+import '../services/send_log_store.dart';
 
 class DirectSmsScreen extends StatefulWidget {
   const DirectSmsScreen({super.key});
@@ -15,6 +18,8 @@ class DirectSmsScreen extends StatefulWidget {
 class _DirectSmsScreenState extends State<DirectSmsScreen> {
   final NativeSmsService _smsService = NativeSmsService();
   final NzRecipientStore _store = NzRecipientStore();
+  final SendLogStore _sendLogStore = SendLogStore();
+  final MessageTimelineService _timelineService = MessageTimelineService();
 
   final TextEditingController _messageController = TextEditingController(
     text: 'Test from Text Helper.',
@@ -59,6 +64,27 @@ class _DirectSmsScreenState extends State<DirectSmsScreen> {
         _messageController.text.trim().isNotEmpty;
   }
 
+  Future<void> _recordSendLog({
+    required String id,
+    required NzSmsRecipient contact,
+    required String message,
+    required String status,
+    String? detail,
+  }) async {
+    final log = SendLogEntry(
+      id: id,
+      phoneNumber: contact.number,
+      message: message,
+      createdAt: DateTime.now(),
+      status: status,
+      errorMessage: detail,
+      reminderId: id,
+    );
+
+    await _sendLogStore.addLog(log);
+    await _timelineService.logFromSendLog(log);
+  }
+
   Future<void> _sendNow() async {
     final contact = _selectedContact;
     final message = _messageController.text.trim();
@@ -66,19 +92,41 @@ class _DirectSmsScreenState extends State<DirectSmsScreen> {
     if (contact == null || message.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Select a contact and enter a message first.'),
+          content: Text('Select an approved contact and enter a message first.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
 
+    final sendId =
+        'direct-${DateTime.now().microsecondsSinceEpoch}-${contact.id}';
+
     setState(() => _isSending = true);
+
+    await _recordSendLog(
+      id: sendId,
+      contact: contact,
+      message: message,
+      status: 'attempting',
+      detail: 'Direct Send attempt started.',
+    );
 
     try {
       await _smsService.sendSms(
         phoneNumber: contact.number,
         message: message,
+        reminderId: sendId,
+        contactId: contact.id,
+      );
+
+      await _recordSendLog(
+        id: sendId,
+        contact: contact,
+        message: message,
+        status: 'sent',
+        detail:
+            'Sent to Android SMS service. This is not a carrier delivery receipt.',
       );
 
       if (!mounted) {
@@ -87,11 +135,21 @@ class _DirectSmsScreenState extends State<DirectSmsScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('SMS sent to ${contact.name}.'),
+          content: Text(
+            'SMS sent to Android SMS service for ${contact.name}.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (error) {
+      await _recordSendLog(
+        id: sendId,
+        contact: contact,
+        message: message,
+        status: 'failed',
+        detail: error.toString(),
+      );
+
       if (!mounted) {
         return;
       }
@@ -197,6 +255,8 @@ class _DirectSmsScreenState extends State<DirectSmsScreen> {
                 ),
                 const SizedBox(height: 12),
                 const _SafetyNote(),
+                const SizedBox(height: 12),
+                const _StatusNote(),
               ],
             ),
     );
@@ -212,7 +272,7 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = contact == null
         ? 'No number selected'
-        : '${contact!.name} • ${contact!.number}';
+        : '${contact!.name} - ${contact!.number}';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -332,12 +392,44 @@ class _SafetyNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(CupertinoIcons.exclamationmark_triangle_fill,
-              color: Color(0xFFF97316)),
+          Icon(
+            CupertinoIcons.exclamationmark_triangle_fill,
+            color: Color(0xFFF97316),
+          ),
           SizedBox(width: 14),
           Expanded(
             child: Text(
               'SEND NOW sends a real SMS directly from this Android phone. Test only with your own number first. Carrier charges may apply.',
+              style: TextStyle(
+                color: CupertinoColors.secondaryLabel,
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusNote extends StatelessWidget {
+  const _StatusNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _SurfaceCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            CupertinoIcons.check_mark_circled_solid,
+            color: Color(0xFF16A34A),
+          ),
+          SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              'Send History and Message Timeline record the attempt, success, or failure. Sent means Android accepted the SMS request. Carrier delivery appears only when Android reports a delivery receipt.',
               style: TextStyle(
                 color: CupertinoColors.secondaryLabel,
                 height: 1.35,
