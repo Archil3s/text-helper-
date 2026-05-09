@@ -5,6 +5,7 @@ $project = Split-Path -Parent $scriptDir
 cd $project
 
 $packageName = "com.example.text_helper"
+$mainActivity = "com.example.text_helper/.MainActivity"
 $phoneDownloadPath = "/sdcard/Download/TextHelper-COPY-THIS.apk"
 $constantCopyFileName = "TextHelper-COPY-THIS.apk"
 $alwaysFreshBuild = $true
@@ -228,15 +229,26 @@ if ($installAndLaunchOnPhone) {
         Write-Error "adb install failed. If you see INSTALL_FAILED_UPDATE_INCOMPATIBLE, the installed app has a different signature. Do not uninstall unless app data is backed up."
     }
 
-    Write-Host "Force-stopping app after install so the new build reloads..."
+    Write-Host "Force-stopping app after install..."
     & $adb shell am force-stop $packageName
     Stop-IfFailed "App force-stop after install failed."
 
+    Write-Host "Waking phone screen..."
+    & $adb shell input keyevent KEYCODE_WAKEUP
     Start-Sleep -Seconds 1
 
     Write-Host "Launching fresh app instance on phone..."
-    & $adb shell am start -W -n "$packageName/.MainActivity" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
+    & $adb shell am start -S -W -n $mainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
     Stop-IfFailed "Fresh app launch failed."
+
+    Write-Host "Verifying foreground app..."
+    $focus = & $adb shell dumpsys window windows
+    $focusText = $focus -join "`n"
+    if ($focusText -notmatch "com.example.text_helper") {
+        Write-Host "Foreground check did not clearly show Text Helper. Trying launcher monkey fallback..."
+        & $adb shell monkey -p $packageName -c android.intent.category.LAUNCHER 1
+        Stop-IfFailed "Fallback app launch failed."
+    }
 
     Write-Host "Verifying installed package..."
     & $adb shell pm path $packageName
