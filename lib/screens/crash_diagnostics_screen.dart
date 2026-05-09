@@ -255,20 +255,11 @@ class _DiagnosticsHero extends StatelessWidget {
           const SizedBox(height: 18),
           Row(
             children: [
-              _HeroMetric(
-                value: '${report.failedLogs}',
-                label: 'failed',
-              ),
+              _HeroMetric(value: '${report.failedLogs}', label: 'failed'),
               const SizedBox(width: 10),
-              _HeroMetric(
-                value: '${report.blockedLogs}',
-                label: 'blocked',
-              ),
+              _HeroMetric(value: '${report.blockedLogs}', label: 'blocked'),
               const SizedBox(width: 10),
-              _HeroMetric(
-                value: '${report.unsentReminders}',
-                label: 'queued',
-              ),
+              _HeroMetric(value: '${report.unsentReminders}', label: 'queued'),
             ],
           ),
         ],
@@ -340,6 +331,8 @@ class _FailureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final errorMessage = failure['errorMessage']?.toString() ?? '';
+
     return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,9 +354,7 @@ class _FailureCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            failure['errorMessage']?.toString().isEmpty ?? true
-                ? 'No error message stored.'
-                : failure['errorMessage'].toString(),
+            errorMessage.isEmpty ? 'No error message stored.' : errorMessage,
             style: const TextStyle(
               color: CupertinoColors.secondaryLabel,
               height: 1.35,
