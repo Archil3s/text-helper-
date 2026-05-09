@@ -125,7 +125,7 @@ class _DirectSmsScreenState extends State<DirectSmsScreen> {
         id: sendId,
         contact: contact,
         message: message,
-        status: 'sent',
+        status: 'sent_to_android',
         detail:
             'Sent to Android SMS service. This is not a carrier delivery receipt.',
       );
@@ -430,7 +430,7 @@ class _StatusNote extends StatelessWidget {
           SizedBox(width: 14),
           Expanded(
             child: Text(
-              'Send History and Message Timeline record the attempt, success, or failure. Sent means Android accepted the SMS request. Carrier delivery appears only when Android reports a delivery receipt.',
+              'Send History and Message Timeline record the attempt, success, or failure. Sent to Android means Android accepted the SMS request. Delivered appears only when Android reports a delivery receipt.',
               style: TextStyle(
                 color: CupertinoColors.secondaryLabel,
                 height: 1.35,

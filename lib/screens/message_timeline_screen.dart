@@ -5,6 +5,7 @@ import '../models/appointment_reminder.dart';
 import '../models/message_timeline_event.dart';
 import '../models/send_log_entry.dart';
 import '../services/appointment_reminder_store.dart';
+import '../services/delivery_status_mapper.dart';
 import '../services/message_timeline_store.dart';
 import '../services/send_log_store.dart';
 
@@ -48,7 +49,7 @@ class _MessageTimelineScreenState extends State<MessageTimelineScreen> {
           reminderId: reminder.id,
           phoneNumber: reminder.phoneNumber,
           message: reminder.message,
-          status: reminder.isSent ? 'sent' : 'queued',
+          status: reminder.isSent ? 'sent_to_android' : 'queued',
           title: reminder.isSent ? 'Marked sent' : 'Queued',
           detail: reminder.isSent
               ? 'Reminder is marked sent in local storage.'
@@ -131,7 +132,9 @@ class _MessageTimelineScreenState extends State<MessageTimelineScreen> {
   }
 
   int get _sentCount {
-    return _events.where((event) => event.status == 'sent').length;
+    return _events
+        .where((event) => DeliveryStatusMapper.isSentToAndroid(event.status))
+        .length;
   }
 
   int get _failedCount {
@@ -148,27 +151,11 @@ class _MessageTimelineScreenState extends State<MessageTimelineScreen> {
   }
 
   Color _statusColor(String status) {
-    return switch (status) {
-      'queued' => const Color(0xFF0A84FF),
-      'background_synced' => const Color(0xFF6366F1),
-      'triggered' => const Color(0xFFF97316),
-      'sent' => const Color(0xFF16A34A),
-      'failed' => const Color(0xFFEF4444),
-      'blocked' => const Color(0xFFF97316),
-      _ => const Color(0xFF6B7280),
-    };
+    return DeliveryStatusMapper.color(status);
   }
 
   IconData _statusIcon(String status) {
-    return switch (status) {
-      'queued' => CupertinoIcons.tray_fill,
-      'background_synced' => CupertinoIcons.cloud_upload_fill,
-      'triggered' => CupertinoIcons.bell_fill,
-      'sent' => CupertinoIcons.check_mark_circled_solid,
-      'failed' => CupertinoIcons.xmark_circle_fill,
-      'blocked' => CupertinoIcons.shield_fill,
-      _ => CupertinoIcons.info_circle_fill,
-    };
+    return DeliveryStatusMapper.icon(status);
   }
 
   @override
@@ -207,7 +194,7 @@ class _MessageTimelineScreenState extends State<MessageTimelineScreen> {
                 const SizedBox(height: 12),
                 _SurfaceCard(
                   child: Text(
-                    'This screen combines stored timeline events, reminders, and send logs. It uses â€œSent to Android SMS serviceâ€ unless real carrier delivery receipts are added later.',
+                    'This screen combines stored timeline events, reminders, and send logs. It uses Sent to Android SMS service unless Android reports a real delivery receipt.',
                     style: const TextStyle(
                       color: CupertinoColors.secondaryLabel,
                       height: 1.35,
@@ -460,7 +447,7 @@ class _TimelineEventCard extends StatelessWidget {
             ),
           ),
           Text(
-            event.status.toUpperCase(),
+            DeliveryStatusMapper.label(event.status).toUpperCase(),
             style: TextStyle(
               color: color,
               fontSize: 11,

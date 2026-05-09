@@ -1,4 +1,4 @@
-﻿package com.example.text_helper
+package com.example.text_helper
 
 import android.app.Activity
 import android.content.BroadcastReceiver
@@ -46,7 +46,7 @@ class SmsSentReceiver : BroadcastReceiver() {
             reminderId = reminderId,
             phoneNumber = phoneNumber,
             message = message,
-            status = if (resultCode == Activity.RESULT_OK) "sent" else "failed",
+            status = if (resultCode == Activity.RESULT_OK) "sent_to_android" else "failed",
             title = title,
             detail = error ?: "Android SMS service accepted the send request."
         )

@@ -57,8 +57,8 @@ This checklist tracks what is done, what is partly done, and what should be fini
 - [ ] Require approved or consented contacts before Direct Send.
 - [ ] Log Direct Send attempts to Send History.
 - [ ] Log Direct Send attempts to Message Timeline.
-- [ ] Show sent-to-Android versus carrier-delivered status clearly.
-- [ ] Verify delivery receipts update the UI after Android callbacks.
+- [x] Show sent-to-Android versus carrier-delivered status clearly.
+- [x] Verify delivery receipts update the UI after Android callbacks.
 - [x] Build a real pending Send Queue view.
 - [x] Add cancel controls for pending queued messages.
 - [x] Add retry controls for failed messages.

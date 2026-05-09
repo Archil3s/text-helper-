@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/delivery_receipt_event.dart';
 import '../services/delivery_receipt_store.dart';
+import '../services/delivery_status_mapper.dart';
 
 class DeliveryReceiptsScreen extends StatefulWidget {
   const DeliveryReceiptsScreen({super.key});
@@ -69,45 +70,15 @@ class _DeliveryReceiptsScreenState extends State<DeliveryReceiptsScreen> {
   }
 
   Color _color(DeliveryReceiptEvent event) {
-    if (event.isDelivered) {
-      return const Color(0xFF16A34A);
-    }
-
-    if (event.isSentToAndroid) {
-      return const Color(0xFF0A84FF);
-    }
-
-    if (event.isFailed) {
-      return const Color(0xFFEF4444);
-    }
-
-    return const Color(0xFF6B7280);
+    return DeliveryStatusMapper.color(event.status);
   }
 
   IconData _icon(DeliveryReceiptEvent event) {
-    if (event.isDelivered) {
-      return CupertinoIcons.check_mark_circled_solid;
-    }
-
-    if (event.isSentToAndroid) {
-      return CupertinoIcons.paperplane_fill;
-    }
-
-    if (event.isFailed) {
-      return CupertinoIcons.xmark_circle_fill;
-    }
-
-    return CupertinoIcons.info_circle_fill;
+    return DeliveryStatusMapper.icon(event.status);
   }
 
   String _label(DeliveryReceiptEvent event) {
-    return switch (event.status) {
-      'sent_to_android_sms' => 'Sent to Android SMS service',
-      'delivered' => 'Delivered',
-      'send_failed' => 'Send failed',
-      'delivery_failed' => 'Delivery failed',
-      _ => event.status,
-    };
+    return DeliveryStatusMapper.label(event.status);
   }
 
   @override
@@ -144,7 +115,7 @@ class _DeliveryReceiptsScreenState extends State<DeliveryReceiptsScreen> {
                 const SizedBox(height: 12),
                 const _SurfaceCard(
                   child: Text(
-                    'Delivery receipts depend on Android, the SIM/carrier, and the recipient network. The app only shows “Delivered” when Android receives a real delivery callback. Otherwise, use “Sent to Android SMS service.”',
+                    'Delivery receipts depend on Android, the SIM/carrier, and the recipient network. The app only shows "Delivered" when Android receives a real delivery callback. Otherwise, use "Sent to Android SMS service."',
                     style: TextStyle(
                       color: CupertinoColors.secondaryLabel,
                       height: 1.35,
