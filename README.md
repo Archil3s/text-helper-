@@ -53,10 +53,10 @@ This checklist tracks what is done, what is partly done, and what should be fini
 ### Incomplete functional work
 
 - [x] Add Direct Send to the Home menu.
-- [ ] Prove Direct Send end to end on a real phone.
-- [ ] Require approved or consented contacts before Direct Send.
-- [ ] Log Direct Send attempts to Send History.
-- [ ] Log Direct Send attempts to Message Timeline.
+- [x] Prove Direct Send end to end on a real phone.
+- [x] Require approved or consented contacts before Direct Send.
+- [x] Log Direct Send attempts to Send History.
+- [x] Log Direct Send attempts to Message Timeline.
 - [x] Show sent-to-Android versus carrier-delivered status clearly.
 - [x] Verify delivery receipts update the UI after Android callbacks.
 - [x] Build a real pending Send Queue view.
