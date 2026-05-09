@@ -2,7 +2,6 @@ import 'package:flutter/services.dart';
 
 import '../models/appointment_reminder.dart';
 import '../models/nz_sms_recipient.dart';
-import '../models/send_log_entry.dart';
 import 'appointment_reminder_store.dart';
 import 'nz_recipient_store.dart';
 import 'send_log_store.dart';
