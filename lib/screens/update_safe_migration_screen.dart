@@ -191,8 +191,9 @@ class _UpdateHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        report.warnings.isEmpty ? const Color(0xFF16A34A) : const Color(0xFFF97316);
+    final color = report.warnings.isEmpty
+        ? const Color(0xFF16A34A)
+        : const Color(0xFFF97316);
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -214,7 +215,8 @@ class _UpdateHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(CupertinoIcons.arrow_2_circlepath, color: Colors.white, size: 36),
+          const Icon(CupertinoIcons.arrow_2_circlepath,
+              color: Colors.white, size: 36),
           const SizedBox(height: 16),
           const Text(
             'Update-safe checks',
@@ -240,9 +242,11 @@ class _UpdateHero extends StatelessWidget {
             children: [
               _HeroMetric(value: '${report.contactsCount}', label: 'contacts'),
               const SizedBox(width: 10),
-              _HeroMetric(value: '${report.remindersCount}', label: 'reminders'),
+              _HeroMetric(
+                  value: '${report.remindersCount}', label: 'reminders'),
               const SizedBox(width: 10),
-              _HeroMetric(value: '${report.warnings.length}', label: 'warnings'),
+              _HeroMetric(
+                  value: '${report.warnings.length}', label: 'warnings'),
             ],
           ),
         ],

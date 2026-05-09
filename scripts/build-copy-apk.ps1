@@ -1,166 +1,181 @@
+﻿param(
+    [ValidateSet("debug", "profile", "release")]
+    [string]$BuildMode = "debug",
+
+    [string]$PackageId = "com.example.text_helper",
+
+    [switch]$Clean,
+    [switch]$PullLatest,
+    [switch]$CleanInstall,
+    [switch]$AlsoCopyToPhoneDownloads
+)
+
 $ErrorActionPreference = "Stop"
 
-$scriptDir = $PSScriptRoot
-$project = Split-Path -Parent $scriptDir
-cd $project
-
-$apkPath = "$project\build\app\outputs\flutter-apk\app-debug.apk"
-$sendDir = "$project\dist\localsend"
-$pubspecPath = "$project\pubspec.yaml"
-
-function Stop-IfFailed {
-    param([string]$Message)
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error $Message
+function Need {
+    param([string]$Name)
+    if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
+        throw "Missing command: $Name"
     }
 }
 
-function Assert-FileExists {
-    param([string]$Path)
-    if (-not (Test-Path $Path)) {
-        Write-Error "Required file not found: $Path"
-    }
-}
-
-function Add-LocalGitExclude {
-    $excludePath = ".git\info\exclude"
-    if (-not (Test-Path $excludePath)) {
-        Write-Error "Missing git exclude file: $excludePath"
-    }
-    $exclude = Get-Content $excludePath -Raw
-    if ($exclude -notmatch "(?m)^dist/$") {
-        Add-Content $excludePath "`ndist/"
-    }
-}
-
-function Get-AppVersionInfo {
-    Assert-FileExists $pubspecPath
-    $pubspec = Get-Content $pubspecPath -Raw
-    $match = [regex]::Match(
-        $pubspec,
-        "(?m)^version:\s*([0-9A-Za-z\.\-_]+)(?:\+([0-9A-Za-z\.\-_]+))?\s*$"
+function RunCmd {
+    param(
+        [string]$Exe,
+        [string[]]$CmdArgs
     )
-    if (-not $match.Success) {
-        Write-Error "Could not find version line in pubspec.yaml"
-    }
-    $versionName = $match.Groups[1].Value
-    $buildNumber = $match.Groups[2].Value
-    if ([string]::IsNullOrWhiteSpace($buildNumber)) {
-        $buildNumber = "0"
-    }
-    return @{
-        VersionName = $versionName
-        BuildNumber = $buildNumber
-        FullVersion = "$versionName+$buildNumber"
-        FileVersion = "v$versionName-$buildNumber"
+
+    Write-Host ""
+    Write-Host "> $Exe $($CmdArgs -join ' ')"
+    & $Exe @CmdArgs
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Exe failed with exit code $LASTEXITCODE"
     }
 }
 
-function Write-AppVersionFile {
-    param([hashtable]$VersionInfo)
+Need git
+Need flutter
+Need dart
+Need adb
 
-    $appVersionPath = "$project\lib\app_version.dart"
+$ScriptDir = $PSScriptRoot
+$ProjectDir = Resolve-Path (Join-Path $ScriptDir "..")
+Set-Location $ProjectDir
 
-    $content = "const String appVersion = '$($VersionInfo.FullVersion)';
-const String appVersionName = '$($VersionInfo.VersionName)';
-const String appBuildNumber = '$($VersionInfo.BuildNumber)';
-"
+Write-Host "PROJECT: $ProjectDir"
 
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($appVersionPath, $content, $utf8NoBom)
+if (-not (Test-Path ".git")) {
+    throw "Not a Git repository."
 }
-function Assert-HomeScreenValid {
-    $homePath = "$project\lib\screens\home_screen.dart"
-    Assert-FileExists $homePath
-    $home = Get-Content $homePath -Raw
-    if ($home.Contains("C:\Users\")) {
-        Write-Error "home_screen.dart is corrupted with a Windows path."
+
+if (-not (Test-Path "pubspec.yaml")) {
+    throw "Missing pubspec.yaml."
+}
+
+$HomePath = ".\lib\screens\home_screen.dart"
+if (Test-Path $HomePath) {
+    $HomeFirstLine = Get-Content $HomePath -TotalCount 1
+    if ($HomeFirstLine -match "^C:\\Users\\") {
+        throw "home_screen.dart is still corrupted. Fix it before building."
     }
-    if (-not $home.Contains("class HomeScreen extends StatelessWidget")) {
-        Write-Error "home_screen.dart does not contain HomeScreen class."
-    }
 }
 
-Add-LocalGitExclude
-
-$versionInfo = Get-AppVersionInfoWrite-AppVersionFile $versionInfo
-
-$branch = git branch --show-current
-$commit = git rev-parse --short HEAD
-$copyFileName = "TextHelper-$($versionInfo.FileVersion)-COPY-THIS.apk"
-$copyPath = "$sendDir\$copyFileName"
-
-Write-Host "APP VERSION:"
-Write-Host $versionInfo.VersionName
-Write-Host "BUILD NUMBER:"
-Write-Host $versionInfo.BuildNumber
-Write-Host "FULL VERSION:"
-Write-Host $versionInfo.FullVersion
-Write-Host "BRANCH:"
-Write-Host $branch
-Write-Host "COMMIT:"
-Write-Host $commit
-Write-Host "COPY APK NAME:"
-Write-Host $copyFileName
-
-Assert-HomeScreenValid
-
-Write-Host "Deleting old LocalSend APK files..."
-if (-not (Test-Path $sendDir)) {
-    New-Item -ItemType Directory -Path $sendDir | Out-Null
-}
-Get-ChildItem $sendDir -Filter "*.apk" -File -ErrorAction SilentlyContinue | Remove-Item -Force
-
-Write-Host "Deleting old Flutter build APK..."
-if (Test-Path $apkPath) {
-    Remove-Item $apkPath -Force
+if ($PullLatest) {
+    RunCmd git @("pull", "--ff-only")
 }
 
-Write-Host "Running dart format..."
-dart format lib
-Stop-IfFailed "dart format lib failed."
-
-Write-Host "Running flutter analyze..."
-flutter analyze
-Stop-IfFailed "flutter analyze failed."
-
-$buildStartedAt = Get-Date
-
-Write-Host "Building fresh debug APK..."
-flutter build apk --debug
-Stop-IfFailed "flutter build apk --debug failed."
-
-if (-not (Test-Path $apkPath)) {
-    Write-Error "APK was not created: $apkPath"
+if ($Clean) {
+    RunCmd flutter @("clean")
 }
 
-$apk = Get-Item $apkPath
-if ($apk.LastWriteTime -lt $buildStartedAt.AddSeconds(-5)) {
-    Write-Error "APK timestamp does not look fresh: $($apk.LastWriteTime)"
+RunCmd flutter @("pub", "get")
+RunCmd dart @("format", "lib")
+RunCmd flutter @("analyze")
+
+$BuildNumber = (git rev-list --count HEAD).Trim()
+$Commit = (git rev-parse --short HEAD).Trim()
+
+$Pubspec = Get-Content ".\pubspec.yaml" -Raw
+$VersionMatch = [regex]::Match(
+    $Pubspec,
+    "(?m)^version:\s*([0-9A-Za-z\.\-_]+)(?:\+([0-9A-Za-z\.\-_]+))?\s*$"
+)
+
+if ($VersionMatch.Success) {
+    $VersionName = $VersionMatch.Groups[1].Value
+} else {
+    $VersionName = "1.0.0"
 }
 
-Copy-Item $apkPath $copyPath -Force
+Write-Host ""
+Write-Host "BUILD MODE: $BuildMode"
+Write-Host "VERSION: $VersionName+$BuildNumber"
+Write-Host "COMMIT: $Commit"
+Write-Host "PACKAGE: $PackageId"
 
-Write-Host "ONLY FILE TO COPY/SEND:"
-Get-Item $copyPath | Select-Object FullName, LastWriteTime, Length | Format-Table -AutoSize
+$OutputDir = Join-Path $ProjectDir "build\app\outputs\flutter-apk"
 
-$explorer = Join-Path $env:WINDIR "explorer.exe"
-if (Test-Path $explorer) {
-    Start-Process $explorer $sendDir
+if (Test-Path $OutputDir) {
+    Get-ChildItem $OutputDir -Filter "*.apk" -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force
 }
 
+RunCmd flutter @(
+    "build",
+    "apk",
+    "--$BuildMode",
+    "--build-name",
+    $VersionName,
+    "--build-number",
+    $BuildNumber
+)
+
+$Apks = Get-ChildItem $OutputDir -Filter "*.apk" -File -Recurse -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending
+
+if (-not $Apks -or $Apks.Count -eq 0) {
+    Write-Host ""
+    Write-Host "No APK found under:"
+    Write-Host $OutputDir
+    throw "Flutter did not produce an APK."
+}
+
+$Apk = $Apks[0]
+$ApkPath = $Apk.FullName
+
+Write-Host ""
+Write-Host "APK FOUND:"
+Write-Host $ApkPath
+
+$Devices = adb devices | Select-String "`tdevice$"
+if ($Devices.Count -eq 0) {
+    throw "No Android device found. Connect Galaxy A16 and approve USB debugging."
+}
+
+if ($CleanInstall) {
+    Write-Host ""
+    Write-Host "CLEAN INSTALL: removing old app and app data..."
+    adb shell am force-stop $PackageId | Out-Host
+    adb uninstall $PackageId | Out-Host
+}
+
+Write-Host ""
+Write-Host "INSTALLING APK..."
+RunCmd adb @("install", "-r", "-d", "-t", $ApkPath)
+
+Write-Host ""
+Write-Host "STOPPING OLD APP..."
+RunCmd adb @("shell", "am", "force-stop", $PackageId)
+
+Start-Sleep -Seconds 1
+
+Write-Host ""
+Write-Host "RELOADING APP..."
+RunCmd adb @(
+    "shell",
+    "monkey",
+    "-p",
+    $PackageId,
+    "-c",
+    "android.intent.category.LAUNCHER",
+    "1"
+)
+
+if ($AlsoCopyToPhoneDownloads) {
+    $RemoteApk = "/sdcard/Download/TextHelper-$BuildMode-$VersionName-$BuildNumber-$Commit.apk"
+
+    Write-Host ""
+    Write-Host "COPYING APK TO PHONE DOWNLOADS..."
+    RunCmd adb @("push", $ApkPath, $RemoteApk)
+
+    Write-Host "COPIED TO:"
+    Write-Host $RemoteApk
+}
+
+Write-Host ""
 Write-Host "DONE"
-Write-Host "COPY THIS APK:"
-Write-Host "$copyPath"
-Write-Host "APP VERSION:"
-Write-Host $versionInfo.VersionName
-Write-Host "BUILD NUMBER:"
-Write-Host $versionInfo.BuildNumber
-Write-Host "FULL VERSION:"
-Write-Host $versionInfo.FullVersion
-Write-Host "BRANCH:"
-Write-Host $branch
-Write-Host "COMMIT:"
-Write-Host $commit
-Write-Host "APK:"
-Write-Host "$project\build\app\outputs\flutter-apk\app-debug.apk"
+Write-Host "INSTALLED AND RELOADED: $PackageId"
+Write-Host "APK: $ApkPath"
+Write-Host "VERSION: $VersionName+$BuildNumber"
+Write-Host "COMMIT: $Commit"

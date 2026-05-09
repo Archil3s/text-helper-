@@ -86,7 +86,7 @@ class _FinalSendReviewScreenState extends State<FinalSendReviewScreen> {
           const SizedBox(height: 20),
           const _SectionTitle('Campaign'),
           const SizedBox(height: 12),
-          const _CampaignCard(
+          _CampaignCard(
             campaignName: _campaignName,
             message: _message,
             recipientCount: _recipients.length,
@@ -221,7 +221,7 @@ class _HeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$completedChecks/$totalChecks checks complete • $statusText',
+                  '$completedChecks/$totalChecks checks complete â€¢ $statusText',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.78),
                     height: 1.3,
