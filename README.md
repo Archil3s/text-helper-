@@ -85,6 +85,7 @@ The app should use “Sent to Android SMS service” unless a real carrier/devic
 
 - SMS-only policy screen clarifying that MMS/media is not supported yet
 - RCS & WhatsApp Policy screen clarifying SMS-only automation, unsupported RCS/WhatsApp/MMS/media behavior, and safe delivery wording
+- Bulk Send Safety screen with consented contact counts, test/live split, rate-limit preview, duration estimate, warning preview, and large-batch guidance
 
 
 ## Permissions and Privacy explanation
