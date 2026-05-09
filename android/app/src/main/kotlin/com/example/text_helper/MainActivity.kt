@@ -9,8 +9,10 @@ import android.app.NotificationManager
 import android.app.NotificationChannel
 import android.app.Notification
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
@@ -22,6 +24,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val nativeSmsChannelName = "text_helper/native_sms"
     private val backgroundAlarmChannelName = "text_helper/background_alarm"
+    private val deviceDiagnosticsChannelName = "text_helper/device_diagnostics"
     private val notificationChannelName = "text_helper/notification_channel"
     private val reminderNotificationChannelId = "text_helper_reminders"
     private val reminderNotificationId = 23001
@@ -119,6 +122,61 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            deviceDiagnosticsChannelName
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getDeviceDiagnostics" -> result.success(getDeviceDiagnostics())
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    private fun getDeviceDiagnostics(): Map<String, Any?> {
+        val batteryIntent = registerReceiver(
+            null,
+            IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        )
+
+        val batteryLevel = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val batteryScale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val batteryStatus = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val batteryPercent = if (batteryLevel >= 0 && batteryScale > 0) {
+            ((batteryLevel * 100.0f) / batteryScale).toInt()
+        } else {
+            -1
+        }
+
+        val isCharging =
+            batteryStatus == BatteryManager.BATTERY_STATUS_CHARGING ||
+                batteryStatus == BatteryManager.BATTERY_STATUS_FULL
+
+        val smsPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+
+        val notificationsPermissionGranted = if (Build.VERSION.SDK_INT >= 33) {
+            checkSelfPermission("android.permission.POST_NOTIFICATIONS") ==
+                PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+
+        return mapOf(
+            "androidRelease" to Build.VERSION.RELEASE,
+            "apiLevel" to Build.VERSION.SDK_INT,
+            "manufacturer" to Build.MANUFACTURER,
+            "model" to Build.MODEL,
+            "brand" to Build.BRAND,
+            "device" to Build.DEVICE,
+            "batteryPercent" to batteryPercent,
+            "batteryCharging" to isCharging,
+            "smsPermissionGranted" to smsPermissionGranted,
+            "notificationsPermissionGranted" to notificationsPermissionGranted
+        )
     }
 
     private fun hasSendSmsPermission(): Boolean {

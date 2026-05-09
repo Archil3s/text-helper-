@@ -234,26 +234,25 @@ These are ranked by review frequency, trust impact, and risk of users uninstalli
    - App and channel notification settings shortcuts added
    - Blocked notification/channel status diagnostics added
 
-6. - [ ] Add purchase restore and pricing clarity screen
-   - Restore purchase entry point
-   - Clear free vs paid capability table
-   - Trial status explanation
-   - Subscription cancellation guidance
-   - No-ads/paid-status diagnostics if billing is later added
-
-7. - [ ] Add crash, freeze, and diagnostics export bundle
+6. - [x] Add crash, freeze, and diagnostics export bundle
    - Export device/app diagnostic report
    - Include Android version, manufacturer, battery status, permission status, queue count, failed logs, and background health
    - Add one-tap copy for support
    - Add local crash/failure notes for lag/freeze reports
+   - Crash Diagnostics screen added to Home
+   - Native Android diagnostics bridge added
+   - Report includes Android version, API level, manufacturer, model, battery state, SMS permission, and notification permission
+   - Report includes queued reminders, failed logs, blocked logs, exact alarm status, and battery optimization status
+   - One-tap copy to clipboard added
+   - Local crash/freeze notes field added
 
-8. - [ ] Add RCS and WhatsApp expectation policy or roadmap
+7. - [ ] Add RCS and WhatsApp expectation policy or roadmap
    - Clearly state SMS support boundaries
    - Clearly state RCS is not controlled by this app unless explicitly implemented
    - Clearly state WhatsApp automation is not currently part of SMS scheduling
    - Prevent false expectation from users looking for WhatsApp/RCS auto-replies
 
-9. - [ ] Add bulk-send safety and large import limits
+8. - [ ] Add bulk-send safety and large import limits
    - Select-all contacts/group tooling
    - Batch progress UI
    - Estimated duration before sending
@@ -261,18 +260,25 @@ These are ranked by review frequency, trust impact, and risk of users uninstalli
    - Large CSV import warnings
    - Guardrails for hundreds/thousands of recipients
 
-10. - [ ] Add update-safe migration checks
+9. - [ ] Add update-safe migration checks
    - Versioned local data migrations
    - Pre-update backup reminder
    - Detect empty data after app version changes
    - Restore prompts if reminders or contacts disappear unexpectedly
    - Prevent scheduled reminders being wiped after updates
 
-11. - [ ] Add ads/no-ads product policy
+10. - [ ] Add ads/no-ads product policy
    - State whether the app has ads or is ad-free
    - If ads are ever added, avoid full-screen blocking ads during critical scheduling flows
    - Never show ads over send/queue confirmation screens
    - Avoid loud/video ads in appointment/reminder workflows
+
+## Deferred / skipped for now
+
+- [ ] Purchase restore and pricing clarity screen
+  - Deferred because billing, subscriptions, trials, and paid/no-ads state are not currently in scope.
+  - Revisit only if billing or paid capabilities are added later.
+
 ## Release gate
 
 Before release/android-beta-v1:
