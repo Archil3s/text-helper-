@@ -258,13 +258,21 @@ These are ranked by review frequency, trust impact, and risk of users uninstalli
    - Policy states MMS/media/chat-app auto-replies are not supported
    - Reviewed state and copy-to-clipboard policy text added
 
-8. - [ ] Add bulk-send safety and large import limits
+8. - [x] Add bulk-send safety and large import limits
    - Select-all contacts/group tooling
    - Batch progress UI
    - Estimated duration before sending
    - Rate-limit preview before queueing
    - Large CSV import warnings
    - Guardrails for hundreds/thousands of recipients
+   - Bulk Send Safety screen added to Home
+   - Contact count, consented count, test/live split, and warning count shown
+   - Rate-limit preview uses current per-minute, per-hour, and per-day caps
+   - Estimated batch duration added
+   - Large batch warning added when consented contacts exceed daily cap
+   - First 25 consented contacts preview added
+   - Suspicious phone-number warnings added
+   - Large import and high-volume send safety guidance added
 
 9. - [ ] Add update-safe migration checks
    - Versioned local data migrations
