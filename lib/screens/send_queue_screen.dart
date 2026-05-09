@@ -381,7 +381,7 @@ class _HeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$pendingCount pending • $sentCount sent • $skippedCount skipped • $selectedCount selected',
+                  '$pendingCount pending - $sentCount sent - $skippedCount skipped - $selectedCount selected',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.78),
                     height: 1.3,

@@ -59,10 +59,10 @@ This checklist tracks what is done, what is partly done, and what should be fini
 - [ ] Log Direct Send attempts to Message Timeline.
 - [ ] Show sent-to-Android versus carrier-delivered status clearly.
 - [ ] Verify delivery receipts update the UI after Android callbacks.
-- [ ] Build a real pending Send Queue view.
-- [ ] Add cancel controls for pending queued messages.
-- [ ] Add retry controls for failed messages.
-- [ ] Add duplicate-send guard using a stable send id.
+- [x] Build a real pending Send Queue view.
+- [x] Add cancel controls for pending queued messages.
+- [x] Add retry controls for failed messages.
+- [x] Add duplicate-send guard using a stable send id.
 - [ ] Enforce Do Not Send before every SMS send path.
 - [ ] Block group sends when any recipient is in Do Not Send.
 - [ ] Prove scheduled reminder flow end to end.

@@ -22,6 +22,7 @@ import 'recipient_audit_preview_screen.dart';
 import 'reliability_dashboard_screen.dart';
 import 'schedule_validation_screen.dart';
 import 'send_history_screen.dart';
+import 'send_queue_screen.dart';
 import 'sms_policy_screen.dart';
 import 'template_manager_screen.dart';
 import 'visual_calendar_screen.dart';
@@ -222,6 +223,13 @@ class HomeScreen extends StatelessWidget {
               title: 'Send History',
               subtitle: 'View sent, failed, blocked, and retryable sends.',
               onTap: () => _open(context, const SendHistoryScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.tray_full_fill,
+              title: 'Send Queue',
+              subtitle:
+                  'Review pending, failed, cancelled, and retryable sends.',
+              onTap: () => _open(context, const SendQueueScreen()),
             ),
             _HomeButton(
               icon: CupertinoIcons.paperplane_fill,
