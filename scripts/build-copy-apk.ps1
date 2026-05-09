@@ -4,8 +4,18 @@ $scriptDir = $PSScriptRoot
 $project = Split-Path -Parent $scriptDir
 cd $project
 
+$packageName = "com.example.text_helper"
+$phoneDownloadPath = "/sdcard/Download/TextHelper-COPY-THIS.apk"
+$constantCopyFileName = "TextHelper-COPY-THIS.apk"
+$alwaysFreshBuild = $true
+$createRevisionArchive = $true
+$installAndLaunchOnPhone = $true
+
 $apkPath = "$project\build\app\outputs\flutter-apk\app-debug.apk"
+$shaPath = "$project\build\app\outputs\flutter-apk\app-debug.apk.sha1"
 $sendDir = "$project\dist\localsend"
+$revisionDir = "$sendDir\revisions"
+$copyPath = "$sendDir\$constantCopyFileName"
 $pubspecPath = "$project\pubspec.yaml"
 
 function Stop-IfFailed {
@@ -33,6 +43,24 @@ function Add-LocalGitExclude {
     }
 }
 
+function Get-AdbPath {
+    $adb = Get-Command "adb" -ErrorAction SilentlyContinue
+    if ($adb) {
+        return $adb.Source
+    }
+    $possible = @(
+        "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe",
+        "C:\Android\platform-tools\adb.exe",
+        "C:\platform-tools\adb.exe"
+    )
+    foreach ($path in $possible) {
+        if (Test-Path $path) {
+            return $path
+        }
+    }
+    Write-Error "adb was not found. Install Android Platform Tools or add adb.exe to PATH."
+}
+
 function Get-AppVersionInfo {
     Assert-FileExists $pubspecPath
     $pubspec = Get-Content $pubspecPath -Raw
@@ -56,19 +84,6 @@ function Get-AppVersionInfo {
     }
 }
 
-function Write-AppVersionFile {
-    param([hashtable]$VersionInfo)
-
-    $appVersionPath = "$project\lib\app_version.dart"
-
-    $content = "const String appVersion = '$($VersionInfo.FullVersion)';
-const String appVersionName = '$($VersionInfo.VersionName)';
-const String appBuildNumber = '$($VersionInfo.BuildNumber)';
-"
-
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($appVersionPath, $content, $utf8NoBom)
-}
 function Assert-HomeScreenValid {
     $homePath = "$project\lib\screens\home_screen.dart"
     Assert-FileExists $homePath
@@ -81,14 +96,30 @@ function Assert-HomeScreenValid {
     }
 }
 
+function Assert-PhoneReady {
+    param([string]$AdbPath)
+    & $AdbPath start-server
+    Stop-IfFailed "adb start-server failed."
+    $devices = & $AdbPath devices
+    $deviceLines = $devices | Where-Object { $_ -match "`tdevice$" }
+    if (-not $deviceLines) {
+        Write-Host $devices
+        Write-Error "No authorized Android device found. Connect USB, enable USB debugging, and accept the phone prompt."
+    }
+    Write-Host "Connected Android device:"
+    $deviceLines | ForEach-Object { Write-Host $_ }
+}
+
 Add-LocalGitExclude
 
-$versionInfo = Get-AppVersionInfoWrite-AppVersionFile $versionInfo
-
+$versionInfo = Get-AppVersionInfo
 $branch = git branch --show-current
 $commit = git rev-parse --short HEAD
-$copyFileName = "TextHelper-$($versionInfo.FileVersion)-COPY-THIS.apk"
-$copyPath = "$sendDir\$copyFileName"
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$safeBranch = $branch -replace "[^a-zA-Z0-9._-]", "-"
+$revisionFileName = "TextHelper-$($versionInfo.FileVersion)-$safeBranch-$commit-$timestamp-debug.apk"
+$revisionPath = "$revisionDir\$revisionFileName"
+$adb = Get-AdbPath
 
 Write-Host "APP VERSION:"
 Write-Host $versionInfo.VersionName
@@ -100,20 +131,39 @@ Write-Host "BRANCH:"
 Write-Host $branch
 Write-Host "COMMIT:"
 Write-Host $commit
-Write-Host "COPY APK NAME:"
-Write-Host $copyFileName
+Write-Host "PACKAGE:"
+Write-Host $packageName
+Write-Host "ADB:"
+Write-Host $adb
+Write-Host "PHONE DOWNLOAD TARGET:"
+Write-Host $phoneDownloadPath
 
 Assert-HomeScreenValid
 
-Write-Host "Deleting old LocalSend APK files..."
+if ($installAndLaunchOnPhone) {
+    Assert-PhoneReady $adb
+}
+
+Write-Host "Preparing output folders..."
 if (-not (Test-Path $sendDir)) {
     New-Item -ItemType Directory -Path $sendDir | Out-Null
 }
-Get-ChildItem $sendDir -Filter "*.apk" -File -ErrorAction SilentlyContinue | Remove-Item -Force
+if ($createRevisionArchive -and -not (Test-Path $revisionDir)) {
+    New-Item -ItemType Directory -Path $revisionDir | Out-Null
+}
 
-Write-Host "Deleting old Flutter build APK..."
-if (Test-Path $apkPath) {
-    Remove-Item $apkPath -Force
+if ($alwaysFreshBuild) {
+    Write-Host "Deleting previous raw Flutter APK..."
+    if (Test-Path $apkPath) {
+        Remove-Item $apkPath -Force
+    }
+    if (Test-Path $shaPath) {
+        Remove-Item $shaPath -Force
+    }
+    Write-Host "Deleting previous constant copy APK..."
+    if (Test-Path $copyPath) {
+        Remove-Item $copyPath -Force
+    }
 }
 
 Write-Host "Running dart format..."
@@ -140,9 +190,42 @@ if ($apk.LastWriteTime -lt $buildStartedAt.AddSeconds(-5)) {
 }
 
 Copy-Item $apkPath $copyPath -Force
+if ($createRevisionArchive) {
+    Copy-Item $apkPath $revisionPath -Force
+}
 
-Write-Host "ONLY FILE TO COPY/SEND:"
-Get-Item $copyPath | Select-Object FullName, LastWriteTime, Length | Format-Table -AutoSize
+$hash = Get-FileHash $copyPath -Algorithm SHA256
+
+if ($installAndLaunchOnPhone) {
+    Write-Host "Pushing APK to Galaxy A16 Download folder..."
+    & $adb push $copyPath $phoneDownloadPath
+    Stop-IfFailed "adb push to phone Download failed."
+
+    Write-Host "Installing/updating APK on phone..."
+    & $adb install -r -d $copyPath
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "adb install failed. If you see INSTALL_FAILED_UPDATE_INCOMPATIBLE, the installed app has a different signature. Do not uninstall unless app data is backed up."
+    }
+
+    Write-Host "Launching app on phone..."
+    & $adb shell monkey -p $packageName -c android.intent.category.LAUNCHER 1
+    Stop-IfFailed "App launch failed."
+
+    Write-Host "Verifying installed package..."
+    & $adb shell pm path $packageName
+    Stop-IfFailed "Package verification failed."
+}
+
+Write-Host "APK FILES:"
+if ($createRevisionArchive) {
+    Get-Item $apkPath, $copyPath, $revisionPath |
+        Select-Object FullName, LastWriteTime, Length |
+        Format-Table -AutoSize
+} else {
+    Get-Item $apkPath, $copyPath |
+        Select-Object FullName, LastWriteTime, Length |
+        Format-Table -AutoSize
+}
 
 $explorer = Join-Path $env:WINDIR "explorer.exe"
 if (Test-Path $explorer) {
@@ -152,6 +235,12 @@ if (Test-Path $explorer) {
 Write-Host "DONE"
 Write-Host "COPY THIS APK:"
 Write-Host "$copyPath"
+Write-Host "REVISION APK:"
+Write-Host "$revisionPath"
+Write-Host "PHONE DOWNLOAD APK:"
+Write-Host "$phoneDownloadPath"
+Write-Host "SHA256:"
+Write-Host $hash.Hash
 Write-Host "APP VERSION:"
 Write-Host $versionInfo.VersionName
 Write-Host "BUILD NUMBER:"

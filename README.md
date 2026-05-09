@@ -1,4 +1,4 @@
-# Text Helper Ã¢â‚¬â€ Reliable SMS Reminder Automation
+# Text Helper ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Reliable SMS Reminder Automation
 
 Development branch: `dev/sms-automation-v1`
 
@@ -19,23 +19,23 @@ Text Helper is being built around the main complaints from SMS scheduler reviews
 
 | Area | Status |
 |---|---:|
-| Reliability dashboard | Ã¢Å“â€¦ Added |
-| Duplicate-send protection | Ã¢Å“â€¦ Added |
-| Background scheduler foundation | Ã¢Å“â€¦ Added |
-| Background health wizard UI | Ã¢Å“â€¦ Added |
-| Send history and retry failed sends | Ã¢Å“â€¦ Added |
-| Backup export and restore screen | Ã¢Å“â€¦ Added |
-| Contact groups UI | Ã¢Å“â€¦ Added |
-| Do Not Send hard block | Ã¢Å“â€¦ Added |
-| Rate-limit checks in send paths | Ã¢Å“â€¦ Added |
-| Privacy cleanup for reminder/log base models | Ã¢Å“â€¦ Added |
-| Battery optimization warning | Ã¢ÂÂ³ Next |
-| Per-message status timeline | Ã¢ÂÂ³ Pending |
-| CSV import/export | Ã¢ÂÂ³ Pending |
-| Template manager | Ã¢ÂÂ³ Pending |
-| Delivery receipt support | Ã¢ÂÂ³ Pending / feasible check needed |
-| Clear SMS-only/MMS policy | Ã¢ÂÂ³ Pending |
-| Release gate testing | Ã¢ÂÂ³ Pending |
+| Reliability dashboard | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Added |
+| Duplicate-send protection | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Added |
+| Background scheduler foundation | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Added |
+| Background health wizard UI | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Added |
+| Send history and retry failed sends | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Added |
+| Backup export and restore screen | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Added |
+| Contact groups UI | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Added |
+| Do Not Send hard block | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Added |
+| Rate-limit checks in send paths | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Added |
+| Privacy cleanup for reminder/log base models | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Added |
+| Battery optimization warning | ÃƒÂ¢Ã‚ÂÃ‚Â³ Next |
+| Per-message status timeline | ÃƒÂ¢Ã‚ÂÃ‚Â³ Pending |
+| CSV import/export | ÃƒÂ¢Ã‚ÂÃ‚Â³ Pending |
+| Template manager | ÃƒÂ¢Ã‚ÂÃ‚Â³ Pending |
+| Delivery receipt support | ÃƒÂ¢Ã‚ÂÃ‚Â³ Pending / feasible check needed |
+| Clear SMS-only/MMS policy | ÃƒÂ¢Ã‚ÂÃ‚Â³ Pending |
+| Release gate testing | ÃƒÂ¢Ã‚ÂÃ‚Â³ Pending |
 
 ## Completed review-feedback fixes
 
@@ -81,7 +81,7 @@ Not supported yet:
 - Contact cards
 - GIFs, stickers, or other media attachments
 
-The app should use â€œSent to Android SMS serviceâ€ unless a real carrier/device delivery callback is received. It should not claim â€œDeliveredâ€ unless Android provides a delivery receipt.
+The app should use Ã¢â‚¬Å“Sent to Android SMS serviceÃ¢â‚¬Â unless a real carrier/device delivery callback is received. It should not claim Ã¢â‚¬Å“DeliveredÃ¢â‚¬Â unless Android provides a delivery receipt.
 
 - SMS-only policy screen clarifying that MMS/media is not supported yet
 - RCS & WhatsApp Policy screen clarifying SMS-only automation, unsupported RCS/WhatsApp/MMS/media behavior, and safe delivery wording
@@ -141,10 +141,10 @@ Text Helper includes a Schedule Builder to validate date/time and recurrence cho
 ## Still pending
 
 - Battery optimization warning and guidance screen
-- Per-message status timeline: queued Ã¢â€ â€™ synced Ã¢â€ â€™ triggered Ã¢â€ â€™ sent/failed/blocked
+- Per-message status timeline: queued ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ synced ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ triggered ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ sent/failed/blocked
 - CSV import/export for contacts, appointments, reminders, and logs
 - Template manager with placeholders: `{name}`, `{date}`, `{time}`, `{location}`, `{appointment}`
-- Delivery receipt support if feasible; until then, use Ã¢â‚¬Å“Sent to Android SMS service,Ã¢â‚¬Â not Ã¢â‚¬Å“DeliveredÃ¢â‚¬Â
+- Delivery receipt support if feasible; until then, use ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œSent to Android SMS service,ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â not ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œDeliveredÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
 - Clear SMS-only/MMS policy so users do not expect images/video/MMS
 - Release gate testing on a real Android phone
 
@@ -174,3 +174,29 @@ The build script:
 Copy/send the file printed after:
 
     COPY THIS APK:
+
+## Constant Android revision install workflow
+
+Every local revision should use:
+
+    .\scripts\build-copy-apk.ps1
+
+That script builds a fresh debug APK, writes this constant copy:
+
+    dist\localsend\TextHelper-COPY-THIS.apk
+
+Then it pushes the APK to the connected Galaxy A16 Download folder:
+
+    /sdcard/Download/TextHelper-COPY-THIS.apk
+
+On Windows this appears as:
+
+    This PC\Galaxy A16\Internal storage\Download\TextHelper-COPY-THIS.apk
+
+It then installs/updates the app and launches it automatically through ADB.
+
+Requirements:
+
+- USB debugging enabled on the phone
+- phone authorized in adb devices
+- adb.exe available in PATH or Android SDK platform-tools
