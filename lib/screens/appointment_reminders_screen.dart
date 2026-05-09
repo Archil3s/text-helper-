@@ -41,7 +41,8 @@ class _AppointmentRemindersScreenState
   int get _dueCount {
     final now = DateTime.now();
     return _reminders
-        .where((reminder) => !reminder.isSent && !reminder.scheduledAt.isAfter(now))
+        .where((reminder) =>
+            !reminder.isSent && !reminder.scheduledAt.isAfter(now))
         .length;
   }
 
@@ -177,7 +178,8 @@ class _AppointmentRemindersScreenState
                           .map(
                             (contact) => DropdownMenuItem<NzSmsRecipient>(
                               value: contact,
-                              child: Text('${contact.name} • ${contact.number}'),
+                              child:
+                                  Text('${contact.name} â€¢ ${contact.number}'),
                             ),
                           )
                           .toList(),
@@ -284,7 +286,8 @@ class _AppointmentRemindersScreenState
     final now = DateTime.now();
 
     final due = _reminders
-        .where((reminder) => !reminder.isSent && !reminder.scheduledAt.isAfter(now))
+        .where((reminder) =>
+            !reminder.isSent && !reminder.scheduledAt.isAfter(now))
         .toList();
 
     if (due.isEmpty) {
@@ -510,7 +513,7 @@ class _HeroCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(28),
       ),
       child: Text(
-        'Appointment reminders\n$dueCount due • $pendingCount pending • $sentCount sent',
+        'Appointment reminders\n$dueCount due â€¢ $pendingCount pending â€¢ $sentCount sent',
         style: const TextStyle(
           color: Colors.white,
           fontSize: 25,
@@ -535,7 +538,8 @@ class _ReminderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final due = !reminder.isSent && !reminder.scheduledAt.isAfter(DateTime.now());
+    final due =
+        !reminder.isSent && !reminder.scheduledAt.isAfter(DateTime.now());
 
     return Dismissible(
       key: ValueKey(reminder.id),

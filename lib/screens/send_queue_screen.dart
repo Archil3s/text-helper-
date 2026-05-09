@@ -51,7 +51,9 @@ class _SendQueueScreenState extends State<SendQueueScreen> {
       _contacts = contacts;
       _selectedIds
         ..clear()
-        ..addAll(contacts.where((contact) => contact.consented).map((contact) => contact.id));
+        ..addAll(contacts
+            .where((contact) => contact.consented)
+            .map((contact) => contact.id));
       _sentIds.clear();
       _skippedIds.clear();
       _isLoading = false;
@@ -59,12 +61,15 @@ class _SendQueueScreenState extends State<SendQueueScreen> {
   }
 
   List<NzSmsRecipient> get _selectedContacts {
-    return _contacts.where((contact) => _selectedIds.contains(contact.id)).toList();
+    return _contacts
+        .where((contact) => _selectedIds.contains(contact.id))
+        .toList();
   }
 
   List<NzSmsRecipient> get _pendingContacts {
     return _selectedContacts
-        .where((contact) => !_sentIds.contains(contact.id) && !_skippedIds.contains(contact.id))
+        .where((contact) =>
+            !_sentIds.contains(contact.id) && !_skippedIds.contains(contact.id))
         .toList();
   }
 
@@ -105,7 +110,8 @@ class _SendQueueScreenState extends State<SendQueueScreen> {
     if (contact == null || !_canOpenNext) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Queue blocked. Select approved contacts and review the message.'),
+          content: Text(
+              'Queue blocked. Select approved contacts and review the message.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -139,7 +145,8 @@ class _SendQueueScreenState extends State<SendQueueScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Opened Android Messages for ${contact.name}. After sending, return and tap Mark sent.'),
+        content: Text(
+            'Opened Android Messages for ${contact.name}. After sending, return and tap Mark sent.'),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -261,7 +268,8 @@ class _SendQueueScreenState extends State<SendQueueScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: nextContact == null ? null : _markNextSent,
-                        icon: const Icon(CupertinoIcons.check_mark_circled_solid),
+                        icon:
+                            const Icon(CupertinoIcons.check_mark_circled_solid),
                         label: const Text('Mark sent'),
                       ),
                     ),
@@ -289,16 +297,20 @@ class _SendQueueScreenState extends State<SendQueueScreen> {
                     children: [
                       _CheckRow(
                         title: 'Consent confirmed',
-                        subtitle: 'Only approved contacts are included by default.',
+                        subtitle:
+                            'Only approved contacts are included by default.',
                         value: _confirmConsent,
-                        onChanged: (value) => setState(() => _confirmConsent = value),
+                        onChanged: (value) =>
+                            setState(() => _confirmConsent = value),
                       ),
                       const Divider(height: 24),
                       _CheckRow(
                         title: 'Message reviewed',
-                        subtitle: 'Android Messages opens for each contact. You still tap Send.',
+                        subtitle:
+                            'Android Messages opens for each contact. You still tap Send.',
                         value: _confirmMessage,
-                        onChanged: (value) => setState(() => _confirmMessage = value),
+                        onChanged: (value) =>
+                            setState(() => _confirmMessage = value),
                       ),
                     ],
                   ),
@@ -369,7 +381,7 @@ class _HeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$pendingCount pending • $sentCount sent • $skippedCount skipped • $selectedCount selected',
+                  '$pendingCount pending â€¢ $sentCount sent â€¢ $skippedCount skipped â€¢ $selectedCount selected',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.78),
                     height: 1.3,

@@ -14,7 +14,8 @@ class _CampaignBuilderScreenState extends State<CampaignBuilderScreen> {
   );
 
   final TextEditingController _messageController = TextEditingController(
-    text: 'Hi, this is a reminder from Text Helper. Please reply STOP to opt out.',
+    text:
+        'Hi, this is a reminder from Text Helper. Please reply STOP to opt out.',
   );
 
   bool _requireConsent = true;
@@ -52,8 +53,8 @@ class _CampaignBuilderScreenState extends State<CampaignBuilderScreen> {
     final hasCampaignName = _campaignNameController.text.trim().isNotEmpty;
     final hasMessage = _messageController.text.trim().isNotEmpty;
     final hasRecipients = _validNzNumbers.isNotEmpty;
-    final hasUnsubscribe = !_includeUnsubscribe ||
-        _finalMessage.toLowerCase().contains('stop');
+    final hasUnsubscribe =
+        !_includeUnsubscribe || _finalMessage.toLowerCase().contains('stop');
 
     final passed = hasCampaignName &&
         hasMessage &&
@@ -325,7 +326,7 @@ class _HeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$recipientCount NZ recipients • ${safetyCheckPassed ? 'safety passed' : 'safety pending'}',
+                  '$recipientCount NZ recipients â€¢ ${safetyCheckPassed ? 'safety passed' : 'safety pending'}',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.78),
                     height: 1.3,

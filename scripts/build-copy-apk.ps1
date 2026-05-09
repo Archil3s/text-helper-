@@ -54,6 +54,29 @@ function Add-LocalGitExclude {
     }
 }
 
+function Repair-DartUtf8Files {
+    $utf8Strict = New-Object System.Text.UTF8Encoding($false, $true)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    Get-ChildItem "$project\lib" -Recurse -Filter "*.dart" -File | ForEach-Object {
+        $path = $_.FullName
+        $bytes = [System.IO.File]::ReadAllBytes($path)
+        try {
+            [void]$utf8Strict.GetString($bytes)
+        } catch {
+            Write-Host "Repairing non-UTF8 Dart file:"
+            Write-Host $path
+            if ($bytes.Length -ge 2 -and $bytes[0] -eq 255 -and $bytes[1] -eq 254) {
+                $text = [System.Text.Encoding]::Unicode.GetString($bytes)
+            } elseif ($bytes.Length -ge 2 -and $bytes[0] -eq 254 -and $bytes[1] -eq 255) {
+                $text = [System.Text.Encoding]::BigEndianUnicode.GetString($bytes)
+            } else {
+                $text = [System.Text.Encoding]::Default.GetString($bytes)
+            }
+            [System.IO.File]::WriteAllText($path, $text, $utf8NoBom)
+        }
+    }
+}
+
 function Get-AdbPath {
     $adb = Get-Command "adb" -ErrorAction SilentlyContinue
     if ($adb) {
@@ -128,6 +151,7 @@ function Assert-PhoneReady {
 }
 
 Add-LocalGitExclude
+Repair-DartUtf8Files
 
 $versionInfo = Get-AppVersionInfo
 Write-AppVersionFile $versionInfo
@@ -240,15 +264,6 @@ if ($installAndLaunchOnPhone) {
     Write-Host "Launching fresh app instance on phone..."
     & $adb shell am start -S -W -n $mainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
     Stop-IfFailed "Fresh app launch failed."
-
-    Write-Host "Verifying foreground app..."
-    $focus = & $adb shell dumpsys window windows
-    $focusText = $focus -join "`n"
-    if ($focusText -notmatch "com.example.text_helper") {
-        Write-Host "Foreground check did not clearly show Text Helper. Trying launcher monkey fallback..."
-        & $adb shell monkey -p $packageName -c android.intent.category.LAUNCHER 1
-        Stop-IfFailed "Fallback app launch failed."
-    }
 
     Write-Host "Verifying installed package..."
     & $adb shell pm path $packageName

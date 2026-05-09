@@ -212,7 +212,7 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = contact == null
         ? 'No number selected'
-        : '${contact!.name} • ${contact!.number}';
+        : '${contact!.name} â€¢ ${contact!.number}';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -281,7 +281,8 @@ class _ContactCard extends StatelessWidget {
               selected
                   ? CupertinoIcons.check_mark_circled_solid
                   : CupertinoIcons.person_fill,
-              color: selected ? const Color(0xFF0A84FF) : const Color(0xFF16A34A),
+              color:
+                  selected ? const Color(0xFF0A84FF) : const Color(0xFF16A34A),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -331,7 +332,8 @@ class _SafetyNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(CupertinoIcons.exclamationmark_triangle_fill, color: Color(0xFFF97316)),
+          Icon(CupertinoIcons.exclamationmark_triangle_fill,
+              color: Color(0xFFF97316)),
           SizedBox(width: 14),
           Expanded(
             child: Text(
