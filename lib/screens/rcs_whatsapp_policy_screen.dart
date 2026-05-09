@@ -267,8 +267,8 @@ class _PolicyHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          Row(
-            children: const [
+          const Row(
+            children: [
               _HeroPill(label: 'SMS', value: 'YES'),
               SizedBox(width: 10),
               _HeroPill(label: 'RCS', value: 'NO'),
