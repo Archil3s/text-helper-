@@ -72,9 +72,9 @@ This checklist tracks what is done, what is partly done, and what should be fini
 - [ ] Rehydrate queue after app restart.
 - [ ] Rehydrate queue after phone reboot.
 - [ ] Rehydrate queue after app update.
-- [ ] Add backup schema version checks.
-- [ ] Add backup restore validation before import.
-- [ ] Add restore duplicate prevention.
+- [x] Add backup schema version checks.
+- [x] Add backup restore validation before import.
+- [x] Add restore duplicate prevention.
 - [ ] Add a real phone regression test report section.
 - [x] Add a guard that blocks home_screen.dart if it contains a pasted Windows path.
 
