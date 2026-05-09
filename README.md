@@ -14,6 +14,83 @@ Text Helper focuses on:
 - Background permission health checks.
 - SMS-only reminder automation.
 
+## Implementation checklist
+
+This checklist tracks what is done, what is partly done, and what should be finished next. Update the boxes as each item is built, tested on a real Android phone, and pushed to main.
+
+### Done or currently present
+
+- [x] Flutter Android project builds a debug APK.
+- [x] Home menu restored with the main feature screens.
+- [x] Contacts screen exists for test numbers.
+- [x] Automation screen exists for scheduling and queue workflows.
+- [x] Background Scheduler screen exists.
+- [x] Background Wizard screen exists.
+- [x] Visual Calendar screen exists.
+- [x] Schedule Builder screen exists.
+- [x] Recipient Audit screen exists.
+- [x] Bulk Send Safety screen exists.
+- [x] Send History screen exists.
+- [x] Message Timeline screen exists.
+- [x] Delivery Receipts screen exists.
+- [x] Template Manager screen exists.
+- [x] Contact Groups screen exists.
+- [x] Backup and Restore screen exists.
+- [x] CSV Import and Export screen exists.
+- [x] Reliability screen exists.
+- [x] Battery Optimization screen exists.
+- [x] Notification Sound Test screen exists.
+- [x] Crash Diagnostics screen exists.
+- [x] Permissions and Privacy screen exists.
+- [x] Device Setup Guides screen exists.
+- [x] SMS and MMS Policy screen exists.
+- [x] RCS and WhatsApp Policy screen exists.
+- [x] Native SMS service exists through the Flutter method channel.
+- [x] Android SMS backend uses SmsManager for real SMS sending.
+- [x] Android sent and delivered callback plumbing exists.
+- [x] Background alarm sync service exists.
+
+### Incomplete functional work
+
+- [ ] Add Direct Send to the Home menu.
+- [ ] Prove Direct Send end to end on a real phone.
+- [ ] Require approved or consented contacts before Direct Send.
+- [ ] Log Direct Send attempts to Send History.
+- [ ] Log Direct Send attempts to Message Timeline.
+- [ ] Show sent-to-Android versus carrier-delivered status clearly.
+- [ ] Verify delivery receipts update the UI after Android callbacks.
+- [ ] Build a real pending Send Queue view.
+- [ ] Add cancel controls for pending queued messages.
+- [ ] Add retry controls for failed messages.
+- [ ] Add duplicate-send guard using a stable send id.
+- [ ] Enforce Do Not Send before every SMS send path.
+- [ ] Block group sends when any recipient is in Do Not Send.
+- [ ] Prove scheduled reminder flow end to end.
+- [ ] Persist scheduled reminders before syncing alarms.
+- [ ] Sync scheduled reminders to native Android alarms.
+- [ ] Confirm BackgroundSmsReceiver sends due messages.
+- [ ] Rehydrate queue after app restart.
+- [ ] Rehydrate queue after phone reboot.
+- [ ] Rehydrate queue after app update.
+- [ ] Add backup schema version checks.
+- [ ] Add backup restore validation before import.
+- [ ] Add restore duplicate prevention.
+- [ ] Add a real phone regression test report section.
+- [ ] Add a guard that blocks home_screen.dart if it contains a pasted Windows path.
+
+### Suggested next features to finish
+
+1. Direct Send Home Route: expose the existing DirectSmsScreen from Home and test a real SMS.
+2. Direct Send History Logging: write each send attempt, success, failure, and callback state to Send History and Message Timeline.
+3. Scheduled Send End-to-End: connect reminder creation, local persistence, alarm sync, receiver send, and status logging.
+4. Send Queue Controls: add pending queue, cancel, retry, max attempts, and duplicate-send guard.
+5. Do Not Send Enforcement: block every direct, scheduled, and group send before SMS is attempted.
+6. Delivery Status Mapping: separate queued, attempting, sent-to-Android, delivered, failed, blocked, skipped, and retrying.
+7. Backup Integrity Verifier: validate backup version, required fields, duplicate ids, and restore safety before import.
+8. Reboot and Update Recovery: make the app resync pending reminders after reboot and app update.
+9. Home Source Guard: add a script check that fails if home_screen.dart starts with C:\Users or other pasted local path text.
+10. Real Phone Release Report: add a repeatable checklist for build, install, copy APK, force-stop, relaunch, Direct Send test, and scheduled send test.
+
 ## Build rules
 
 Before pushing main, run the guarded build flow:
@@ -71,3 +148,19 @@ Before pushing main, the project must pass:
 - APK copy to phone Downloads.
 - App force-stop.
 - App relaunch.
+
+## Release gate checklist
+
+Use this checklist before each push to main:
+
+- [ ] git status is clean or changes are intentionally staged.
+- [ ] README checklist is updated when a feature is completed.
+- [ ] flutter pub get passes.
+- [ ] dart format lib passes.
+- [ ] flutter analyze passes.
+- [ ] flutter build apk --debug passes.
+- [ ] APK installs on the connected Android phone.
+- [ ] APK is copied to /sdcard/Download/text-helper-debug.apk.
+- [ ] App force-stop and relaunch passes.
+- [ ] Direct Send test passes when Direct Send is changed.
+- [ ] Scheduled send test passes when scheduler code is changed.
