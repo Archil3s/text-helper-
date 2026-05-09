@@ -52,7 +52,7 @@ This checklist tracks what is done, what is partly done, and what should be fini
 
 ### Incomplete functional work
 
-- [ ] Add Direct Send to the Home menu.
+- [x] Add Direct Send to the Home menu.
 - [ ] Prove Direct Send end to end on a real phone.
 - [ ] Require approved or consented contacts before Direct Send.
 - [ ] Log Direct Send attempts to Send History.
@@ -76,7 +76,7 @@ This checklist tracks what is done, what is partly done, and what should be fini
 - [ ] Add backup restore validation before import.
 - [ ] Add restore duplicate prevention.
 - [ ] Add a real phone regression test report section.
-- [ ] Add a guard that blocks home_screen.dart if it contains a pasted Windows path.
+- [x] Add a guard that blocks home_screen.dart if it contains a pasted Windows path.
 
 ### Suggested next features to finish
 

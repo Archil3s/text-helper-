@@ -13,6 +13,7 @@ import 'contacts_screen.dart';
 import 'crash_diagnostics_screen.dart';
 import 'csv_import_export_screen.dart';
 import 'delivery_receipts_screen.dart';
+import 'direct_sms_screen.dart';
 import 'message_timeline_screen.dart';
 import 'notification_channel_test_screen.dart';
 import 'permissions_privacy_screen.dart';
@@ -221,6 +222,12 @@ class HomeScreen extends StatelessWidget {
               title: 'Send History',
               subtitle: 'View sent, failed, blocked, and retryable sends.',
               onTap: () => _open(context, const SendHistoryScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.paperplane_fill,
+              title: 'Direct Send',
+              subtitle: 'Send a real SMS now from this Android phone.',
+              onTap: () => _open(context, const DirectSmsScreen()),
             ),
             _HomeButton(
               icon: CupertinoIcons.person_2_fill,
