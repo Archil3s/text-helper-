@@ -84,6 +84,7 @@ Not supported yet:
 The app should use “Sent to Android SMS service” unless a real carrier/device delivery callback is received. It should not claim “Delivered” unless Android provides a delivery receipt.
 
 - SMS-only policy screen clarifying that MMS/media is not supported yet
+- RCS & WhatsApp Policy screen clarifying SMS-only automation, unsupported RCS/WhatsApp/MMS/media behavior, and safe delivery wording
 
 
 ## Permissions and Privacy explanation
