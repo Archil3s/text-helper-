@@ -1,4 +1,4 @@
-# Text Helper â€” Reliable SMS Reminder Automation
+# Text Helper Ã¢â‚¬â€ Reliable SMS Reminder Automation
 
 Development branch: `dev/sms-automation-v1`
 
@@ -19,23 +19,23 @@ Text Helper is being built around the main complaints from SMS scheduler reviews
 
 | Area | Status |
 |---|---:|
-| Reliability dashboard | âœ… Added |
-| Duplicate-send protection | âœ… Added |
-| Background scheduler foundation | âœ… Added |
-| Background health wizard UI | âœ… Added |
-| Send history and retry failed sends | âœ… Added |
-| Backup export and restore screen | âœ… Added |
-| Contact groups UI | âœ… Added |
-| Do Not Send hard block | âœ… Added |
-| Rate-limit checks in send paths | âœ… Added |
-| Privacy cleanup for reminder/log base models | âœ… Added |
-| Battery optimization warning | â³ Next |
-| Per-message status timeline | â³ Pending |
-| CSV import/export | â³ Pending |
-| Template manager | â³ Pending |
-| Delivery receipt support | â³ Pending / feasible check needed |
-| Clear SMS-only/MMS policy | â³ Pending |
-| Release gate testing | â³ Pending |
+| Reliability dashboard | Ã¢Å“â€¦ Added |
+| Duplicate-send protection | Ã¢Å“â€¦ Added |
+| Background scheduler foundation | Ã¢Å“â€¦ Added |
+| Background health wizard UI | Ã¢Å“â€¦ Added |
+| Send history and retry failed sends | Ã¢Å“â€¦ Added |
+| Backup export and restore screen | Ã¢Å“â€¦ Added |
+| Contact groups UI | Ã¢Å“â€¦ Added |
+| Do Not Send hard block | Ã¢Å“â€¦ Added |
+| Rate-limit checks in send paths | Ã¢Å“â€¦ Added |
+| Privacy cleanup for reminder/log base models | Ã¢Å“â€¦ Added |
+| Battery optimization warning | Ã¢ÂÂ³ Next |
+| Per-message status timeline | Ã¢ÂÂ³ Pending |
+| CSV import/export | Ã¢ÂÂ³ Pending |
+| Template manager | Ã¢ÂÂ³ Pending |
+| Delivery receipt support | Ã¢ÂÂ³ Pending / feasible check needed |
+| Clear SMS-only/MMS policy | Ã¢ÂÂ³ Pending |
+| Release gate testing | Ã¢ÂÂ³ Pending |
 
 ## Completed review-feedback fixes
 
@@ -81,7 +81,7 @@ Not supported yet:
 - Contact cards
 - GIFs, stickers, or other media attachments
 
-The app should use “Sent to Android SMS service” unless a real carrier/device delivery callback is received. It should not claim “Delivered” unless Android provides a delivery receipt.
+The app should use â€œSent to Android SMS serviceâ€ unless a real carrier/device delivery callback is received. It should not claim â€œDeliveredâ€ unless Android provides a delivery receipt.
 
 - SMS-only policy screen clarifying that MMS/media is not supported yet
 - RCS & WhatsApp Policy screen clarifying SMS-only automation, unsupported RCS/WhatsApp/MMS/media behavior, and safe delivery wording
@@ -141,10 +141,10 @@ Text Helper includes a Schedule Builder to validate date/time and recurrence cho
 ## Still pending
 
 - Battery optimization warning and guidance screen
-- Per-message status timeline: queued â†’ synced â†’ triggered â†’ sent/failed/blocked
+- Per-message status timeline: queued Ã¢â€ â€™ synced Ã¢â€ â€™ triggered Ã¢â€ â€™ sent/failed/blocked
 - CSV import/export for contacts, appointments, reminders, and logs
 - Template manager with placeholders: `{name}`, `{date}`, `{time}`, `{location}`, `{appointment}`
-- Delivery receipt support if feasible; until then, use â€œSent to Android SMS service,â€ not â€œDeliveredâ€
+- Delivery receipt support if feasible; until then, use Ã¢â‚¬Å“Sent to Android SMS service,Ã¢â‚¬Â not Ã¢â‚¬Å“DeliveredÃ¢â‚¬Â
 - Clear SMS-only/MMS policy so users do not expect images/video/MMS
 - Release gate testing on a real Android phone
 
@@ -152,11 +152,25 @@ See the full checklist for detailed status:
 
 [Review feedback implementation checklist](docs/review-feedback-checklist.md)
 
+## Local APK build workflow
 
+Every local feature script should build a fresh debug APK before commit or push.
 
+Use this command from the project root:
 
+    .\scripts\build-copy-apk.ps1
 
+The build script:
 
+- reads the app version from pubspec.yaml
+- prints app version, build number, branch, and commit
+- deletes old APKs from dist\localsend
+- runs dart format lib
+- runs flutter analyze
+- runs flutter build apk --debug
+- copies one versioned APK to dist\localsend
+- leaves only one APK to send with LocalSend
 
+Copy/send the file printed after:
 
-
+    COPY THIS APK:
