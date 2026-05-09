@@ -1,341 +1,181 @@
+﻿param(
+    [ValidateSet("debug", "profile", "release")]
+    [string]$BuildMode = "debug",
+
+    [string]$PackageId = "com.example.text_helper",
+
+    [switch]$Clean,
+    [switch]$PullLatest,
+    [switch]$CleanInstall,
+    [switch]$AlsoCopyToPhoneDownloads
+)
+
 $ErrorActionPreference = "Stop"
 
-$scriptDir = $PSScriptRoot
-$project = Split-Path -Parent $scriptDir
-cd $project
-
-$packageName = "com.example.text_helper"
-$mainActivity = "com.example.text_helper/.MainActivity"
-$phoneDownloadPath = "/sdcard/Download/TextHelper-COPY-THIS.apk"
-$constantCopyFileName = "TextHelper-COPY-THIS.apk"
-
-$apkPath = "$project\build\app\outputs\flutter-apk\app-debug.apk"
-$sendDir = "$project\dist\localsend"
-$revisionDir = "$sendDir\revisions"
-$copyPath = "$sendDir\$constantCopyFileName"
-$pubspecPath = "$project\pubspec.yaml"
-$appVersionPath = "$project\lib\app_version.dart"
-
-function Stop-IfFailed {
-    param([string]$Message)
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error $Message
+function Need {
+    param([string]$Name)
+    if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
+        throw "Missing command: $Name"
     }
 }
 
-function Assert-FileExists {
-    param([string]$Path)
-
-    if (-not (Test-Path $Path)) {
-        Write-Error "Required file not found: $Path"
-    }
-}
-
-function Write-Utf8NoBomText {
-    param([string]$Path, [string]$Text)
-
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($Path, $Text, $utf8NoBom)
-}
-
-function Add-LocalGitExclude {
-    $excludePath = ".git\info\exclude"
-
-    if (-not (Test-Path $excludePath)) {
-        Write-Error "Missing git exclude file: $excludePath"
-    }
-
-    $exclude = Get-Content $excludePath -Raw
-
-    if ($exclude -notmatch "(?m)^dist/$") {
-        Add-Content $excludePath "`ndist/"
-    }
-}
-
-function Repair-DartUtf8Files {
-    $utf8Strict = New-Object System.Text.UTF8Encoding($false, $true)
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-
-    Get-ChildItem "$project\lib" -Recurse -Filter "*.dart" -File | ForEach-Object {
-        $path = $_.FullName
-        $bytes = [System.IO.File]::ReadAllBytes($path)
-
-        try {
-            [void]$utf8Strict.GetString($bytes)
-        } catch {
-            Write-Host "Repairing non-UTF8 Dart file:"
-            Write-Host $path
-
-            if ($bytes.Length -ge 2 -and $bytes[0] -eq 255 -and $bytes[1] -eq 254) {
-                $text = [System.Text.Encoding]::Unicode.GetString($bytes)
-            } elseif ($bytes.Length -ge 2 -and $bytes[0] -eq 254 -and $bytes[1] -eq 255) {
-                $text = [System.Text.Encoding]::BigEndianUnicode.GetString($bytes)
-            } else {
-                $text = [System.Text.Encoding]::Default.GetString($bytes)
-            }
-
-            [System.IO.File]::WriteAllText($path, $text, $utf8NoBom)
-        }
-    }
-}
-
-function Get-AdbPath {
-    $adb = Get-Command "adb" -ErrorAction SilentlyContinue
-
-    if ($adb) {
-        return $adb.Source
-    }
-
-    $possible = @(
-        "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe",
-        "C:\Android\platform-tools\adb.exe",
-        "C:\platform-tools\adb.exe"
+function RunCmd {
+    param(
+        [string]$Exe,
+        [string[]]$CmdArgs
     )
 
-    foreach ($path in $possible) {
-        if (Test-Path $path) {
-            return $path
-        }
-    }
-
-    Write-Error "adb.exe was not found. Install Android Platform Tools or add adb.exe to PATH."
-}
-
-function Get-AppVersionInfo {
-    Assert-FileExists $pubspecPath
-
-    $pubspec = Get-Content $pubspecPath -Raw
-    $match = [regex]::Match($pubspec, "(?m)^version:\s*([0-9A-Za-z\.\-_]+)(?:\+([0-9A-Za-z\.\-_]+))?\s*$")
-
-    if (-not $match.Success) {
-        Write-Error "Could not find version line in pubspec.yaml"
-    }
-
-    $versionName = $match.Groups[1].Value
-    $buildNumber = $match.Groups[2].Value
-
-    if ([string]::IsNullOrWhiteSpace($buildNumber)) {
-        $buildNumber = "0"
-    }
-
-    return @{
-        VersionName = $versionName
-        BuildNumber = $buildNumber
-        FullVersion = "$versionName+$buildNumber"
-        FileVersion = "v$versionName-$buildNumber"
-    }
-}
-
-function Write-AppVersionFile {
-    param([hashtable]$VersionInfo)
-
-    $content = "const String appVersion = '$($VersionInfo.FullVersion)';`nconst String appVersionName = '$($VersionInfo.VersionName)';`nconst String appBuildNumber = '$($VersionInfo.BuildNumber)';`n"
-    Write-Utf8NoBomText $appVersionPath $content
-}
-
-function Assert-HomeScreenValid {
-    $homePath = "$project\lib\screens\home_screen.dart"
-
-    Assert-FileExists $homePath
-
-    $homeText = Get-Content $homePath -Raw
-
-    if ($homeText.Contains("C:\Users\")) {
-        Write-Error "home_screen.dart is corrupted with a Windows path."
-    }
-
-    if (-not $homeText.Contains("class HomeScreen extends StatelessWidget")) {
-        Write-Error "home_screen.dart does not contain HomeScreen class."
-    }
-}
-
-function Assert-PhoneReady {
-    param([string]$AdbPath)
-
-    & $AdbPath start-server
-    Stop-IfFailed "adb start-server failed."
-
-    $devices = & $AdbPath devices
-    $deviceLines = $devices | Where-Object { $_ -match "`tdevice$" }
-
-    if (-not $deviceLines) {
-        Write-Host $devices
-        Write-Error "No authorized Android device found. Unlock Galaxy A16, enable USB debugging, and accept the debugging prompt."
-    }
-
-    Write-Host "Connected Android device:"
-    $deviceLines | ForEach-Object { Write-Host $_ }
-}
-
-function Assert-AppRunning {
-    param([string]$AdbPath)
-
-    $pid = & $AdbPath shell pidof $packageName
-    $pidText = ($pid -join "").Trim()
-
-    if ([string]::IsNullOrWhiteSpace($pidText)) {
-        Write-Error "App is not running after launch. Install/reload rule failed."
-    }
-
-    Write-Host "Verified running app PID:"
-    Write-Host $pidText
-}
-
-Add-LocalGitExclude
-Repair-DartUtf8Files
-
-$versionInfo = Get-AppVersionInfo
-Write-AppVersionFile $versionInfo
-
-$branch = git branch --show-current
-$commit = git rev-parse --short HEAD
-$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$safeBranch = $branch -replace "[^a-zA-Z0-9._-]", "-"
-$revisionFileName = "TextHelper-$($versionInfo.FileVersion)-$safeBranch-$commit-$timestamp-debug.apk"
-$revisionPath = "$revisionDir\$revisionFileName"
-$adb = Get-AdbPath
-
-Write-Host "APP VERSION:"
-Write-Host $versionInfo.VersionName
-Write-Host "BUILD NUMBER:"
-Write-Host $versionInfo.BuildNumber
-Write-Host "FULL VERSION:"
-Write-Host $versionInfo.FullVersion
-Write-Host "BRANCH:"
-Write-Host $branch
-Write-Host "COMMIT:"
-Write-Host $commit
-Write-Host "PACKAGE:"
-Write-Host $packageName
-Write-Host "PHONE DOWNLOAD TARGET:"
-Write-Host $phoneDownloadPath
-
-Assert-HomeScreenValid
-Assert-PhoneReady $adb
-
-if (-not (Test-Path $sendDir)) {
-    New-Item -ItemType Directory -Path $sendDir | Out-Null
-}
-
-if (-not (Test-Path $revisionDir)) {
-    New-Item -ItemType Directory -Path $revisionDir | Out-Null
-}
-
-Write-Host "Deleting previous APK outputs..."
-
-if (Test-Path $apkPath) {
-    Remove-Item $apkPath -Force
-}
-
-if (Test-Path $copyPath) {
-    Remove-Item $copyPath -Force
-}
-
-Write-Host "Running dart format..."
-dart format lib
-Stop-IfFailed "dart format lib failed."
-
-Write-Host "Running flutter analyze..."
-flutter analyze
-Stop-IfFailed "flutter analyze failed."
-
-$buildStartedAt = Get-Date
-
-Write-Host "Building fresh debug APK..."
-flutter build apk --debug
-Stop-IfFailed "flutter build apk --debug failed."
-
-if (-not (Test-Path $apkPath)) {
-    Write-Error "APK was not created: $apkPath"
-}
-
-$apk = Get-Item $apkPath
-
-if ($apk.LastWriteTime -lt $buildStartedAt.AddSeconds(-5)) {
-    Write-Error "APK timestamp does not look fresh: $($apk.LastWriteTime)"
-}
-
-Write-Host "Copying local APK outputs..."
-Copy-Item $apkPath $copyPath -Force
-Copy-Item $apkPath $revisionPath -Force
-
-$hash = Get-FileHash $copyPath -Algorithm SHA256
-
-Write-Host "Pushing APK to Galaxy A16 Download folder..."
-& $adb push $copyPath $phoneDownloadPath
-Stop-IfFailed "adb push to phone Download failed."
-
-Write-Host "Verifying APK exists in Galaxy A16 Download..."
-& $adb shell ls -l $phoneDownloadPath
-Stop-IfFailed "Phone Download APK verification failed."
-
-Write-Host "Force-stopping app before install..."
-& $adb shell am force-stop $packageName
-Stop-IfFailed "App force-stop before install failed."
-
-Write-Host "Installing/updating APK with ADB..."
-& $adb install -r -d $copyPath
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "PC-side install failed. Trying phone-side install from Download..."
-    & $adb shell pm install -r -d $phoneDownloadPath
+    Write-Host ""
+    Write-Host "> $Exe $($CmdArgs -join ' ')"
+    & $Exe @CmdArgs
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "APK install failed. If INSTALL_FAILED_UPDATE_INCOMPATIBLE appears, the installed app has a different signature. Back up data before uninstalling."
+        throw "$Exe failed with exit code $LASTEXITCODE"
     }
 }
 
-Write-Host "Verifying installed package..."
-& $adb shell pm path $packageName
-Stop-IfFailed "Package verification failed after install."
+Need git
+Need flutter
+Need dart
+Need adb
 
-Write-Host "Force-stopping app after install..."
-& $adb shell am force-stop $packageName
-Stop-IfFailed "App force-stop after install failed."
+$ScriptDir = $PSScriptRoot
+$ProjectDir = Resolve-Path (Join-Path $ScriptDir "..")
+Set-Location $ProjectDir
 
-Write-Host "Waking phone..."
-& $adb shell input keyevent KEYCODE_WAKEUP
-& $adb shell wm dismiss-keyguard
-Start-Sleep -Seconds 1
+Write-Host "PROJECT: $ProjectDir"
 
-Write-Host "Launching fresh app instance..."
-& $adb shell am start -S -W -n $mainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Direct launch failed. Trying launcher fallback..."
-    & $adb shell monkey -p $packageName -c android.intent.category.LAUNCHER 1
-    Stop-IfFailed "Fallback app launch failed."
+if (-not (Test-Path ".git")) {
+    throw "Not a Git repository."
 }
 
-Start-Sleep -Seconds 2
+if (-not (Test-Path "pubspec.yaml")) {
+    throw "Missing pubspec.yaml."
+}
 
-Write-Host "Verifying app is running after reload..."
-Assert-AppRunning $adb
+$HomePath = ".\lib\screens\home_screen.dart"
+if (Test-Path $HomePath) {
+    $HomeFirstLine = Get-Content $HomePath -TotalCount 1
+    if ($HomeFirstLine -match "^C:\\Users\\") {
+        throw "home_screen.dart is still corrupted. Fix it before building."
+    }
+}
 
-Write-Host "APK FILES:"
-Get-Item $apkPath, $copyPath, $revisionPath |
-    Select-Object FullName, LastWriteTime, Length |
-    Format-Table -AutoSize
+if ($PullLatest) {
+    RunCmd git @("pull", "--ff-only")
+}
 
+if ($Clean) {
+    RunCmd flutter @("clean")
+}
+
+RunCmd flutter @("pub", "get")
+RunCmd dart @("format", "lib")
+RunCmd flutter @("analyze")
+
+$BuildNumber = (git rev-list --count HEAD).Trim()
+$Commit = (git rev-parse --short HEAD).Trim()
+
+$Pubspec = Get-Content ".\pubspec.yaml" -Raw
+$VersionMatch = [regex]::Match(
+    $Pubspec,
+    "(?m)^version:\s*([0-9A-Za-z\.\-_]+)(?:\+([0-9A-Za-z\.\-_]+))?\s*$"
+)
+
+if ($VersionMatch.Success) {
+    $VersionName = $VersionMatch.Groups[1].Value
+} else {
+    $VersionName = "1.0.0"
+}
+
+Write-Host ""
+Write-Host "BUILD MODE: $BuildMode"
+Write-Host "VERSION: $VersionName+$BuildNumber"
+Write-Host "COMMIT: $Commit"
+Write-Host "PACKAGE: $PackageId"
+
+$OutputDir = Join-Path $ProjectDir "build\app\outputs\flutter-apk"
+
+if (Test-Path $OutputDir) {
+    Get-ChildItem $OutputDir -Filter "*.apk" -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force
+}
+
+RunCmd flutter @(
+    "build",
+    "apk",
+    "--$BuildMode",
+    "--build-name",
+    $VersionName,
+    "--build-number",
+    $BuildNumber
+)
+
+$Apks = Get-ChildItem $OutputDir -Filter "*.apk" -File -Recurse -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending
+
+if (-not $Apks -or $Apks.Count -eq 0) {
+    Write-Host ""
+    Write-Host "No APK found under:"
+    Write-Host $OutputDir
+    throw "Flutter did not produce an APK."
+}
+
+$Apk = $Apks[0]
+$ApkPath = $Apk.FullName
+
+Write-Host ""
+Write-Host "APK FOUND:"
+Write-Host $ApkPath
+
+$Devices = adb devices | Select-String "`tdevice$"
+if ($Devices.Count -eq 0) {
+    throw "No Android device found. Connect Galaxy A16 and approve USB debugging."
+}
+
+if ($CleanInstall) {
+    Write-Host ""
+    Write-Host "CLEAN INSTALL: removing old app and app data..."
+    adb shell am force-stop $PackageId | Out-Host
+    adb uninstall $PackageId | Out-Host
+}
+
+Write-Host ""
+Write-Host "INSTALLING APK..."
+RunCmd adb @("install", "-r", "-d", "-t", $ApkPath)
+
+Write-Host ""
+Write-Host "STOPPING OLD APP..."
+RunCmd adb @("shell", "am", "force-stop", $PackageId)
+
+Start-Sleep -Seconds 1
+
+Write-Host ""
+Write-Host "RELOADING APP..."
+RunCmd adb @(
+    "shell",
+    "monkey",
+    "-p",
+    $PackageId,
+    "-c",
+    "android.intent.category.LAUNCHER",
+    "1"
+)
+
+if ($AlsoCopyToPhoneDownloads) {
+    $RemoteApk = "/sdcard/Download/TextHelper-$BuildMode-$VersionName-$BuildNumber-$Commit.apk"
+
+    Write-Host ""
+    Write-Host "COPYING APK TO PHONE DOWNLOADS..."
+    RunCmd adb @("push", $ApkPath, $RemoteApk)
+
+    Write-Host "COPIED TO:"
+    Write-Host $RemoteApk
+}
+
+Write-Host ""
 Write-Host "DONE"
-Write-Host "INSTALL/RELOAD VERIFIED:"
-Write-Host "YES"
-Write-Host "WINDOWS PHONE LOCATION:"
-Write-Host "This PC\Galaxy A16\Internal storage\Download\TextHelper-COPY-THIS.apk"
-Write-Host "ADB PHONE PATH:"
-Write-Host "$phoneDownloadPath"
-Write-Host "LOCAL APK:"
-Write-Host "$copyPath"
-Write-Host "REVISION APK:"
-Write-Host "$revisionPath"
-Write-Host "SHA256:"
-Write-Host $hash.Hash
-Write-Host "APP VERSION:"
-Write-Host $versionInfo.VersionName
-Write-Host "BUILD NUMBER:"
-Write-Host $versionInfo.BuildNumber
-Write-Host "FULL VERSION:"
-Write-Host $versionInfo.FullVersion
-Write-Host "APK:"
-Write-Host "$project\build\app\outputs\flutter-apk\app-debug.apk"
+Write-Host "INSTALLED AND RELOADED: $PackageId"
+Write-Host "APK: $ApkPath"
+Write-Host "VERSION: $VersionName+$BuildNumber"
+Write-Host "COMMIT: $Commit"
