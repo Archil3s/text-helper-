@@ -86,7 +86,7 @@ class _FinalSendReviewScreenState extends State<FinalSendReviewScreen> {
           const SizedBox(height: 20),
           const _SectionTitle('Campaign'),
           const SizedBox(height: 12),
-          const _CampaignCard(
+          _CampaignCard(
             campaignName: _campaignName,
             message: _message,
             recipientCount: _recipients.length,

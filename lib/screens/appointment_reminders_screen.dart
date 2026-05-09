@@ -164,7 +164,7 @@ class _AppointmentRemindersScreenState
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<NzSmsRecipient>(
-                      value: selectedContact,
+                      initialValue: selectedContact,
                       decoration: InputDecoration(
                         labelText: 'Contact',
                         filled: true,
@@ -269,9 +269,13 @@ class _AppointmentRemindersScreenState
       contactId: selectedContact.id,
       contactName: selectedContact.name,
       phoneNumber: selectedContact.number,
+      appointmentTitle: 'Appointment',
+      location: '',
       message: message,
       scheduledAt: scheduledAt,
       isSent: false,
+      recurrenceRule: 'once',
+      templateName: 'Custom',
     );
 
     await _reminderStore.addReminder(reminder);
