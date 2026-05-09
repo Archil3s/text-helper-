@@ -17,7 +17,7 @@ class _RcsWhatsAppPolicyScreenState extends State<RcsWhatsAppPolicyScreen> {
   bool _loading = true;
   bool _reviewed = false;
   String _status =
-      'Review what Text Helper can and cannot automate before relying on it.';
+      'Review SMS, RCS, WhatsApp, and media limits before relying on automation.';
 
   @override
   void initState() {
@@ -36,7 +36,7 @@ class _RcsWhatsAppPolicyScreenState extends State<RcsWhatsAppPolicyScreen> {
       _reviewed = prefs.getBool(_reviewedKey) ?? false;
       _loading = false;
       _status = _reviewed
-          ? 'Policy reviewed. Text Helper is configured as an SMS-only scheduler.'
+          ? 'Policy reviewed. Text Helper is SMS-only automation.'
           : 'Policy not reviewed yet.';
     });
   }
@@ -51,8 +51,7 @@ class _RcsWhatsAppPolicyScreenState extends State<RcsWhatsAppPolicyScreen> {
 
     setState(() {
       _reviewed = true;
-      _status =
-          'Policy reviewed. RCS and WhatsApp expectations are now clearly acknowledged.';
+      _status = 'Policy reviewed.';
     });
   }
 
@@ -116,7 +115,7 @@ Important:
                 const SizedBox(height: 12),
                 const _PolicySection(
                   icon: CupertinoIcons.chat_bubble_text_fill,
-                  title: 'What Text Helper supports',
+                  title: 'Supported',
                   color: Color(0xFF16A34A),
                   items: [
                     'Scheduled SMS text reminders',
@@ -128,7 +127,7 @@ Important:
                 ),
                 const _PolicySection(
                   icon: CupertinoIcons.xmark_circle_fill,
-                  title: 'What Text Helper does not support',
+                  title: 'Not supported',
                   color: Color(0xFFDC2626),
                   items: [
                     'RCS messaging',
@@ -145,7 +144,7 @@ Important:
                   items: [
                     'RCS is controlled by the default Messages app, carrier, Android settings, and recipient support.',
                     'Text Helper does not control whether another app upgrades a message to RCS.',
-                    'If a user needs guaranteed automation from this app, they should treat it as SMS-only.',
+                    'For reliable automation from this app, treat Text Helper as SMS-only.',
                   ],
                 ),
                 const _PolicySection(
@@ -269,21 +268,12 @@ class _PolicyHero extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Row(
-            children: [
-              _HeroPill(
-                label: 'SMS',
-                value: 'YES',
-              ),
-              const SizedBox(width: 10),
-              _HeroPill(
-                label: 'RCS',
-                value: 'NO',
-              ),
-              const SizedBox(width: 10),
-              _HeroPill(
-                label: 'WhatsApp',
-                value: 'NO',
-              ),
+            children: const [
+              _HeroPill(label: 'SMS', value: 'YES'),
+              SizedBox(width: 10),
+              _HeroPill(label: 'RCS', value: 'NO'),
+              SizedBox(width: 10),
+              _HeroPill(label: 'WhatsApp', value: 'NO'),
             ],
           ),
         ],
