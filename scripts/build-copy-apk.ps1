@@ -17,6 +17,7 @@ $sendDir = "$project\dist\localsend"
 $revisionDir = "$sendDir\revisions"
 $copyPath = "$sendDir\$constantCopyFileName"
 $pubspecPath = "$project\pubspec.yaml"
+$appVersionPath = "$project\lib\app_version.dart"
 
 function Stop-IfFailed {
     param([string]$Message)
@@ -30,6 +31,15 @@ function Assert-FileExists {
     if (-not (Test-Path $Path)) {
         Write-Error "Required file not found: $Path"
     }
+}
+
+function Write-Utf8NoBomText {
+    param(
+        [string]$Path,
+        [string]$Text
+    )
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Text, $utf8NoBom)
 }
 
 function Add-LocalGitExclude {
@@ -84,14 +94,20 @@ function Get-AppVersionInfo {
     }
 }
 
+function Write-AppVersionFile {
+    param([hashtable]$VersionInfo)
+    $content = "const String appVersion = '$($VersionInfo.FullVersion)';`nconst String appVersionName = '$($VersionInfo.VersionName)';`nconst String appBuildNumber = '$($VersionInfo.BuildNumber)';`n"
+    Write-Utf8NoBomText $appVersionPath $content
+}
+
 function Assert-HomeScreenValid {
     $homePath = "$project\lib\screens\home_screen.dart"
     Assert-FileExists $homePath
-    $home = Get-Content $homePath -Raw
-    if ($home.Contains("C:\Users\")) {
+    $homeText = Get-Content $homePath -Raw
+    if ($homeText.Contains("C:\Users\")) {
         Write-Error "home_screen.dart is corrupted with a Windows path."
     }
-    if (-not $home.Contains("class HomeScreen extends StatelessWidget")) {
+    if (-not $homeText.Contains("class HomeScreen extends StatelessWidget")) {
         Write-Error "home_screen.dart does not contain HomeScreen class."
     }
 }
@@ -113,6 +129,7 @@ function Assert-PhoneReady {
 Add-LocalGitExclude
 
 $versionInfo = Get-AppVersionInfo
+Write-AppVersionFile $versionInfo
 $branch = git branch --show-current
 $commit = git rev-parse --short HEAD
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -214,6 +231,10 @@ if ($installAndLaunchOnPhone) {
     Write-Host "Verifying installed package..."
     & $adb shell pm path $packageName
     Stop-IfFailed "Package verification failed."
+
+    Write-Host "Verifying APK exists in phone Download..."
+    & $adb shell ls -l $phoneDownloadPath
+    Stop-IfFailed "Phone Download APK verification failed."
 }
 
 Write-Host "APK FILES:"
@@ -227,11 +248,6 @@ if ($createRevisionArchive) {
         Format-Table -AutoSize
 }
 
-$explorer = Join-Path $env:WINDIR "explorer.exe"
-if (Test-Path $explorer) {
-    Start-Process $explorer $sendDir
-}
-
 Write-Host "DONE"
 Write-Host "COPY THIS APK:"
 Write-Host "$copyPath"
@@ -239,6 +255,8 @@ Write-Host "REVISION APK:"
 Write-Host "$revisionPath"
 Write-Host "PHONE DOWNLOAD APK:"
 Write-Host "$phoneDownloadPath"
+Write-Host "WINDOWS PHONE LOCATION:"
+Write-Host "This PC\Galaxy A16\Internal storage\Download\TextHelper-COPY-THIS.apk"
 Write-Host "SHA256:"
 Write-Host $hash.Hash
 Write-Host "APP VERSION:"
