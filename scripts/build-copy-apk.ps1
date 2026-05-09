@@ -218,15 +218,25 @@ if ($installAndLaunchOnPhone) {
     & $adb push $copyPath $phoneDownloadPath
     Stop-IfFailed "adb push to phone Download failed."
 
+    Write-Host "Force-stopping app before install..."
+    & $adb shell am force-stop $packageName
+    Stop-IfFailed "App force-stop before install failed."
+
     Write-Host "Installing/updating APK on phone..."
     & $adb install -r -d $copyPath
     if ($LASTEXITCODE -ne 0) {
         Write-Error "adb install failed. If you see INSTALL_FAILED_UPDATE_INCOMPATIBLE, the installed app has a different signature. Do not uninstall unless app data is backed up."
     }
 
-    Write-Host "Launching app on phone..."
-    & $adb shell monkey -p $packageName -c android.intent.category.LAUNCHER 1
-    Stop-IfFailed "App launch failed."
+    Write-Host "Force-stopping app after install so the new build reloads..."
+    & $adb shell am force-stop $packageName
+    Stop-IfFailed "App force-stop after install failed."
+
+    Start-Sleep -Seconds 1
+
+    Write-Host "Launching fresh app instance on phone..."
+    & $adb shell am start -W -n "$packageName/.MainActivity" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
+    Stop-IfFailed "Fresh app launch failed."
 
     Write-Host "Verifying installed package..."
     & $adb shell pm path $packageName
