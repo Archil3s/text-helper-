@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+if command -v pwsh >/dev/null 2>&1; then
+  pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/validate_repo.ps1
+elif command -v powershell.exe >/dev/null 2>&1; then
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/validate_repo.ps1
+else
+  echo "VALIDATION FAILED: PowerShell was not found."
+  exit 1
+fi

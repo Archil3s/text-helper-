@@ -168,3 +168,25 @@ Use this checklist before each push to main:
 - [ ] App force-stop and relaunch passes.
 - [ ] Direct Send test passes when Direct Send is changed.
 - [ ] Scheduled send test passes when scheduler code is changed.
+## Git safety guards
+
+This repo includes local Git hooks and validation scripts to prevent common broken pushes.
+
+Setup once after cloning:
+
+    git config core.hooksPath .githooks
+
+Before committing or pushing, the hooks run:
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\validate_repo.ps1
+
+The validator blocks:
+
+- Missing local Dart imports.
+- Untracked source files that were forgotten.
+- Non-ASCII text in source, README, Android XML, or Kotlin files.
+- Pasted Windows paths in home_screen.dart.
+
+Use this script for the standard build/install gate:
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\safe_build_install.ps1
