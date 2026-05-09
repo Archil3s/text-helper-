@@ -92,7 +92,8 @@ class _DirectSmsScreenState extends State<DirectSmsScreen> {
     if (contact == null || message.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Select an approved contact and enter a message first.'),
+          content:
+              Text('Select an approved contact and enter a message first.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
