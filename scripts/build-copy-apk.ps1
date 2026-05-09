@@ -18,6 +18,7 @@ $appVersionPath = "$project\lib\app_version.dart"
 
 function Stop-IfFailed {
     param([string]$Message)
+
     if ($LASTEXITCODE -ne 0) {
         Write-Error $Message
     }
@@ -25,6 +26,7 @@ function Stop-IfFailed {
 
 function Assert-FileExists {
     param([string]$Path)
+
     if (-not (Test-Path $Path)) {
         Write-Error "Required file not found: $Path"
     }
@@ -32,16 +34,20 @@ function Assert-FileExists {
 
 function Write-Utf8NoBomText {
     param([string]$Path, [string]$Text)
+
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($Path, $Text, $utf8NoBom)
 }
 
 function Add-LocalGitExclude {
     $excludePath = ".git\info\exclude"
+
     if (-not (Test-Path $excludePath)) {
         Write-Error "Missing git exclude file: $excludePath"
     }
+
     $exclude = Get-Content $excludePath -Raw
+
     if ($exclude -notmatch "(?m)^dist/$") {
         Add-Content $excludePath "`ndist/"
     }
@@ -76,6 +82,7 @@ function Repair-DartUtf8Files {
 
 function Get-AdbPath {
     $adb = Get-Command "adb" -ErrorAction SilentlyContinue
+
     if ($adb) {
         return $adb.Source
     }
@@ -92,11 +99,12 @@ function Get-AdbPath {
         }
     }
 
-    Write-Error "adb was not found. Install Android Platform Tools or add adb.exe to PATH."
+    Write-Error "adb.exe was not found. Install Android Platform Tools or add adb.exe to PATH."
 }
 
 function Get-AppVersionInfo {
     Assert-FileExists $pubspecPath
+
     $pubspec = Get-Content $pubspecPath -Raw
     $match = [regex]::Match($pubspec, "(?m)^version:\s*([0-9A-Za-z\.\-_]+)(?:\+([0-9A-Za-z\.\-_]+))?\s*$")
 
@@ -121,13 +129,16 @@ function Get-AppVersionInfo {
 
 function Write-AppVersionFile {
     param([hashtable]$VersionInfo)
+
     $content = "const String appVersion = '$($VersionInfo.FullVersion)';`nconst String appVersionName = '$($VersionInfo.VersionName)';`nconst String appBuildNumber = '$($VersionInfo.BuildNumber)';`n"
     Write-Utf8NoBomText $appVersionPath $content
 }
 
 function Assert-HomeScreenValid {
     $homePath = "$project\lib\screens\home_screen.dart"
+
     Assert-FileExists $homePath
+
     $homeText = Get-Content $homePath -Raw
 
     if ($homeText.Contains("C:\Users\")) {
@@ -150,11 +161,25 @@ function Assert-PhoneReady {
 
     if (-not $deviceLines) {
         Write-Host $devices
-        Write-Error "No authorized Android device found. Plug in Galaxy A16, enable USB debugging, unlock the phone, and accept the debugging prompt."
+        Write-Error "No authorized Android device found. Unlock Galaxy A16, enable USB debugging, and accept the debugging prompt."
     }
 
     Write-Host "Connected Android device:"
     $deviceLines | ForEach-Object { Write-Host $_ }
+}
+
+function Assert-AppRunning {
+    param([string]$AdbPath)
+
+    $pid = & $AdbPath shell pidof $packageName
+    $pidText = ($pid -join "").Trim()
+
+    if ([string]::IsNullOrWhiteSpace($pidText)) {
+        Write-Error "App is not running after launch. Install/reload rule failed."
+    }
+
+    Write-Host "Verified running app PID:"
+    Write-Host $pidText
 }
 
 Add-LocalGitExclude
@@ -189,18 +214,20 @@ Write-Host $phoneDownloadPath
 Assert-HomeScreenValid
 Assert-PhoneReady $adb
 
-Write-Host "Preparing output folders..."
 if (-not (Test-Path $sendDir)) {
     New-Item -ItemType Directory -Path $sendDir | Out-Null
 }
+
 if (-not (Test-Path $revisionDir)) {
     New-Item -ItemType Directory -Path $revisionDir | Out-Null
 }
 
 Write-Host "Deleting previous APK outputs..."
+
 if (Test-Path $apkPath) {
     Remove-Item $apkPath -Force
 }
+
 if (Test-Path $copyPath) {
     Remove-Item $copyPath -Force
 }
@@ -224,6 +251,7 @@ if (-not (Test-Path $apkPath)) {
 }
 
 $apk = Get-Item $apkPath
+
 if ($apk.LastWriteTime -lt $buildStartedAt.AddSeconds(-5)) {
     Write-Error "APK timestamp does not look fresh: $($apk.LastWriteTime)"
 }
@@ -231,6 +259,7 @@ if ($apk.LastWriteTime -lt $buildStartedAt.AddSeconds(-5)) {
 Write-Host "Copying local APK outputs..."
 Copy-Item $apkPath $copyPath -Force
 Copy-Item $apkPath $revisionPath -Force
+
 $hash = Get-FileHash $copyPath -Algorithm SHA256
 
 Write-Host "Pushing APK to Galaxy A16 Download folder..."
@@ -245,37 +274,44 @@ Write-Host "Force-stopping app before install..."
 & $adb shell am force-stop $packageName
 Stop-IfFailed "App force-stop before install failed."
 
-Write-Host "Installing/updating APK from phone Download folder..."
-& $adb shell pm install -r -d $phoneDownloadPath
+Write-Host "Installing/updating APK with ADB..."
+& $adb install -r -d $copyPath
+
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Phone-side install failed. Trying PC-side adb install fallback..."
-    & $adb install -r -d $copyPath
+    Write-Host "PC-side install failed. Trying phone-side install from Download..."
+    & $adb shell pm install -r -d $phoneDownloadPath
+
     if ($LASTEXITCODE -ne 0) {
         Write-Error "APK install failed. If INSTALL_FAILED_UPDATE_INCOMPATIBLE appears, the installed app has a different signature. Back up data before uninstalling."
     }
 }
 
+Write-Host "Verifying installed package..."
+& $adb shell pm path $packageName
+Stop-IfFailed "Package verification failed after install."
+
 Write-Host "Force-stopping app after install..."
 & $adb shell am force-stop $packageName
 Stop-IfFailed "App force-stop after install failed."
 
-Write-Host "Waking and unlocking phone if allowed..."
+Write-Host "Waking phone..."
 & $adb shell input keyevent KEYCODE_WAKEUP
 & $adb shell wm dismiss-keyguard
-& $adb shell input keyevent KEYCODE_MENU
 Start-Sleep -Seconds 1
 
-Write-Host "Launching fresh app instance on phone..."
+Write-Host "Launching fresh app instance..."
 & $adb shell am start -S -W -n $mainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
+
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Direct MainActivity launch failed. Trying launcher fallback..."
+    Write-Host "Direct launch failed. Trying launcher fallback..."
     & $adb shell monkey -p $packageName -c android.intent.category.LAUNCHER 1
     Stop-IfFailed "Fallback app launch failed."
 }
 
-Write-Host "Verifying installed package..."
-& $adb shell pm path $packageName
-Stop-IfFailed "Package verification failed."
+Start-Sleep -Seconds 2
+
+Write-Host "Verifying app is running after reload..."
+Assert-AppRunning $adb
 
 Write-Host "APK FILES:"
 Get-Item $apkPath, $copyPath, $revisionPath |
@@ -283,14 +319,16 @@ Get-Item $apkPath, $copyPath, $revisionPath |
     Format-Table -AutoSize
 
 Write-Host "DONE"
-Write-Host "COPY THIS APK:"
+Write-Host "INSTALL/RELOAD VERIFIED:"
+Write-Host "YES"
+Write-Host "WINDOWS PHONE LOCATION:"
+Write-Host "This PC\Galaxy A16\Internal storage\Download\TextHelper-COPY-THIS.apk"
+Write-Host "ADB PHONE PATH:"
+Write-Host "$phoneDownloadPath"
+Write-Host "LOCAL APK:"
 Write-Host "$copyPath"
 Write-Host "REVISION APK:"
 Write-Host "$revisionPath"
-Write-Host "PHONE DOWNLOAD APK:"
-Write-Host "$phoneDownloadPath"
-Write-Host "WINDOWS PHONE LOCATION:"
-Write-Host "This PC\Galaxy A16\Internal storage\Download\TextHelper-COPY-THIS.apk"
 Write-Host "SHA256:"
 Write-Host $hash.Hash
 Write-Host "APP VERSION:"
@@ -299,9 +337,5 @@ Write-Host "BUILD NUMBER:"
 Write-Host $versionInfo.BuildNumber
 Write-Host "FULL VERSION:"
 Write-Host $versionInfo.FullVersion
-Write-Host "BRANCH:"
-Write-Host $branch
-Write-Host "COMMIT:"
-Write-Host $commit
 Write-Host "APK:"
 Write-Host "$project\build\app\outputs\flutter-apk\app-debug.apk"
