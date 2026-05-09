@@ -1,4 +1,4 @@
-﻿# Review feedback implementation checklist
+# Review feedback implementation checklist
 
 This checklist tracks the major complaints found in competing SMS scheduler reviews and what Text Helper has or still needs.
 
@@ -194,27 +194,45 @@ These are ranked by review frequency, trust impact, and risk of users uninstalli
    - Include battery optimization, auto-start, sleeping apps, app launch, and lock-screen behavior
    - Device Setup Guides screen added to Home
 
-3. - [ ] Add recipient confirmation and send audit preview
+3. - [x] Add recipient confirmation and send audit preview
    - Preview every recipient before queueing/sending
    - Show contact name, phone number, group, test/live state, and final message
    - Warn about empty or suspicious phone numbers
    - Warn about country-code normalization changes
    - Reduce wrong-recipient, wrong-group, and random-contact complaints
+   - Recipient Audit screen added to Home
+   - Preview every queued recipient before sending/syncing
+   - Shows contact name, phone number, group label, test/live state, and final message
+   - Warns about empty or suspicious phone numbers
+   - Warns when country-code normalization would change the number
 
-4. - [ ] Add schedule validation and advanced repeat builder
+4. - [x] Add schedule validation and advanced repeat builder
    - Validate final scheduled date/time before saving
    - Show next 5 occurrences for recurring messages
    - Add custom interval builder
    - Add time-range window support
    - Add 12-hour/24-hour display preference
    - Warn when selected time is in the past or shifted by device settings
+   - Schedule Builder screen added to Home
+   - Validates final scheduled date/time before saving
+   - Shows next 5 occurrences for recurring messages
+   - Custom interval builder added
+   - Time-range sending window added
+   - 12-hour/24-hour display preference added
+   - Warns when selected time is in the past or outside sending window
 
-5. - [ ] Add notification sound and reminder channel test
+5. - [x] Add notification sound and reminder channel test
    - Test reminder notification channel
    - Test notification sound/vibration
    - Link to Android notification settings
    - Show whether notifications are blocked
    - Address complaints about reminder sound or popups stopping after updates
+   - Notification Sound Test screen added to Home
+   - Native Android reminder notification channel creation added
+   - Android notification permission request added for Android 13+
+   - Test notification sound/vibration trigger added
+   - App and channel notification settings shortcuts added
+   - Blocked notification/channel status diagnostics added
 
 6. - [ ] Add purchase restore and pricing clarity screen
    - Restore purchase entry point
@@ -266,4 +284,5 @@ Before release/android-beta-v1:
 - [ ] Duplicate-send test passes
 - [ ] Do Not Send block test passes
 - [ ] Backup export/import test passes
+
 
