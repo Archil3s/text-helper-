@@ -26,6 +26,7 @@ class MainActivity : FlutterActivity() {
     private val backgroundAlarmChannelName = "text_helper/background_alarm"
     private val deviceDiagnosticsChannelName = "text_helper/device_diagnostics"
     private val notificationChannelName = "text_helper/notification_channel"
+    private val whatsAppChannelName = "text_helper/whatsapp_handoff"
     private val reminderNotificationChannelId = "text_helper_reminders"
     private val reminderNotificationId = 23001
     private val postNotificationsPermission = "android.permission.POST_NOTIFICATIONS"
@@ -124,6 +125,25 @@ class MainActivity : FlutterActivity() {
         }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
+            whatsAppChannelName
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "launchWhatsAppHandoff" -> {
+                    val phoneNumber = call.argument<String>("phoneNumber")
+                    val message = call.argument<String>("message")
+
+                    if (phoneNumber.isNullOrBlank() || message.isNullOrBlank()) {
+                        result.error("INVALID_ARGUMENTS", "Phone number and message are required.", null)
+                        return@setMethodCallHandler
+                    }
+
+                    result.success(launchWhatsAppHandoff(phoneNumber, message))
+                }
+                else -> result.notImplemented()
+            }
+        }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
             deviceDiagnosticsChannelName
         ).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -133,6 +153,42 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun launchWhatsAppHandoff(phoneNumber: String, message: String): Boolean {
+        val number = normalizeWhatsAppNumber(phoneNumber)
+
+        if (number.isBlank()) {
+            return false
+        }
+
+        val uri = Uri.parse("https://wa.me/$number?text=${Uri.encode(message)}")
+
+        val whatsappIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+            setPackage("com.whatsapp")
+        }
+
+        return try {
+            startActivity(whatsappIntent)
+            true
+        } catch (firstError: Exception) {
+            try {
+                val fallbackIntent = Intent(Intent.ACTION_VIEW, uri)
+                startActivity(fallbackIntent)
+                true
+            } catch (secondError: Exception) {
+                false
+            }
+        }
+    }
+
+    private fun normalizeWhatsAppNumber(phoneNumber: String): String {
+        val cleaned = phoneNumber.trim().replace(Regex("[^0-9+]"), "")
+
+        return if (cleaned.startsWith("+")) {
+            cleaned.substring(1)
+        } else {
+            cleaned
+        }
+    }
     private fun getDeviceDiagnostics(): Map<String, Any?> {
         val batteryIntent = registerReceiver(
             null,

@@ -26,6 +26,7 @@ import 'send_queue_screen.dart';
 import 'sms_policy_screen.dart';
 import 'template_manager_screen.dart';
 import 'visual_calendar_screen.dart';
+import 'whatsapp_handoff_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -115,6 +116,12 @@ class HomeScreen extends StatelessWidget {
               subtitle:
                   'Clarify that automation is SMS-only and does not send RCS or WhatsApp.',
               onTap: () => _open(context, const RcsWhatsAppPolicyScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.arrow_up_right_square_fill,
+              title: 'WhatsApp Handoff',
+              subtitle: 'Open WhatsApp with a draft. You manually press Send.',
+              onTap: () => _open(context, const WhatsAppHandoffScreen()),
             ),
             _HomeButton(
               icon: CupertinoIcons.exclamationmark_shield_fill,
