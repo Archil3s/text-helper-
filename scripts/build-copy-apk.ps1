@@ -8,12 +8,8 @@ $packageName = "com.example.text_helper"
 $mainActivity = "com.example.text_helper/.MainActivity"
 $phoneDownloadPath = "/sdcard/Download/TextHelper-COPY-THIS.apk"
 $constantCopyFileName = "TextHelper-COPY-THIS.apk"
-$alwaysFreshBuild = $true
-$createRevisionArchive = $true
-$installAndLaunchOnPhone = $true
 
 $apkPath = "$project\build\app\outputs\flutter-apk\app-debug.apk"
-$shaPath = "$project\build\app\outputs\flutter-apk\app-debug.apk.sha1"
 $sendDir = "$project\dist\localsend"
 $revisionDir = "$sendDir\revisions"
 $copyPath = "$sendDir\$constantCopyFileName"
@@ -35,10 +31,7 @@ function Assert-FileExists {
 }
 
 function Write-Utf8NoBomText {
-    param(
-        [string]$Path,
-        [string]$Text
-    )
+    param([string]$Path, [string]$Text)
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($Path, $Text, $utf8NoBom)
 }
@@ -57,14 +50,17 @@ function Add-LocalGitExclude {
 function Repair-DartUtf8Files {
     $utf8Strict = New-Object System.Text.UTF8Encoding($false, $true)
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
     Get-ChildItem "$project\lib" -Recurse -Filter "*.dart" -File | ForEach-Object {
         $path = $_.FullName
         $bytes = [System.IO.File]::ReadAllBytes($path)
+
         try {
             [void]$utf8Strict.GetString($bytes)
         } catch {
             Write-Host "Repairing non-UTF8 Dart file:"
             Write-Host $path
+
             if ($bytes.Length -ge 2 -and $bytes[0] -eq 255 -and $bytes[1] -eq 254) {
                 $text = [System.Text.Encoding]::Unicode.GetString($bytes)
             } elseif ($bytes.Length -ge 2 -and $bytes[0] -eq 254 -and $bytes[1] -eq 255) {
@@ -72,6 +68,7 @@ function Repair-DartUtf8Files {
             } else {
                 $text = [System.Text.Encoding]::Default.GetString($bytes)
             }
+
             [System.IO.File]::WriteAllText($path, $text, $utf8NoBom)
         }
     }
@@ -82,34 +79,38 @@ function Get-AdbPath {
     if ($adb) {
         return $adb.Source
     }
+
     $possible = @(
         "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe",
         "C:\Android\platform-tools\adb.exe",
         "C:\platform-tools\adb.exe"
     )
+
     foreach ($path in $possible) {
         if (Test-Path $path) {
             return $path
         }
     }
+
     Write-Error "adb was not found. Install Android Platform Tools or add adb.exe to PATH."
 }
 
 function Get-AppVersionInfo {
     Assert-FileExists $pubspecPath
     $pubspec = Get-Content $pubspecPath -Raw
-    $match = [regex]::Match(
-        $pubspec,
-        "(?m)^version:\s*([0-9A-Za-z\.\-_]+)(?:\+([0-9A-Za-z\.\-_]+))?\s*$"
-    )
+    $match = [regex]::Match($pubspec, "(?m)^version:\s*([0-9A-Za-z\.\-_]+)(?:\+([0-9A-Za-z\.\-_]+))?\s*$")
+
     if (-not $match.Success) {
         Write-Error "Could not find version line in pubspec.yaml"
     }
+
     $versionName = $match.Groups[1].Value
     $buildNumber = $match.Groups[2].Value
+
     if ([string]::IsNullOrWhiteSpace($buildNumber)) {
         $buildNumber = "0"
     }
+
     return @{
         VersionName = $versionName
         BuildNumber = $buildNumber
@@ -128,9 +129,11 @@ function Assert-HomeScreenValid {
     $homePath = "$project\lib\screens\home_screen.dart"
     Assert-FileExists $homePath
     $homeText = Get-Content $homePath -Raw
+
     if ($homeText.Contains("C:\Users\")) {
         Write-Error "home_screen.dart is corrupted with a Windows path."
     }
+
     if (-not $homeText.Contains("class HomeScreen extends StatelessWidget")) {
         Write-Error "home_screen.dart does not contain HomeScreen class."
     }
@@ -138,14 +141,18 @@ function Assert-HomeScreenValid {
 
 function Assert-PhoneReady {
     param([string]$AdbPath)
+
     & $AdbPath start-server
     Stop-IfFailed "adb start-server failed."
+
     $devices = & $AdbPath devices
     $deviceLines = $devices | Where-Object { $_ -match "`tdevice$" }
+
     if (-not $deviceLines) {
         Write-Host $devices
-        Write-Error "No authorized Android device found. Connect USB, enable USB debugging, and accept the phone prompt."
+        Write-Error "No authorized Android device found. Plug in Galaxy A16, enable USB debugging, unlock the phone, and accept the debugging prompt."
     }
+
     Write-Host "Connected Android device:"
     $deviceLines | ForEach-Object { Write-Host $_ }
 }
@@ -155,6 +162,7 @@ Repair-DartUtf8Files
 
 $versionInfo = Get-AppVersionInfo
 Write-AppVersionFile $versionInfo
+
 $branch = git branch --show-current
 $commit = git rev-parse --short HEAD
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -175,37 +183,26 @@ Write-Host "COMMIT:"
 Write-Host $commit
 Write-Host "PACKAGE:"
 Write-Host $packageName
-Write-Host "ADB:"
-Write-Host $adb
 Write-Host "PHONE DOWNLOAD TARGET:"
 Write-Host $phoneDownloadPath
 
 Assert-HomeScreenValid
-
-if ($installAndLaunchOnPhone) {
-    Assert-PhoneReady $adb
-}
+Assert-PhoneReady $adb
 
 Write-Host "Preparing output folders..."
 if (-not (Test-Path $sendDir)) {
     New-Item -ItemType Directory -Path $sendDir | Out-Null
 }
-if ($createRevisionArchive -and -not (Test-Path $revisionDir)) {
+if (-not (Test-Path $revisionDir)) {
     New-Item -ItemType Directory -Path $revisionDir | Out-Null
 }
 
-if ($alwaysFreshBuild) {
-    Write-Host "Deleting previous raw Flutter APK..."
-    if (Test-Path $apkPath) {
-        Remove-Item $apkPath -Force
-    }
-    if (Test-Path $shaPath) {
-        Remove-Item $shaPath -Force
-    }
-    Write-Host "Deleting previous constant copy APK..."
-    if (Test-Path $copyPath) {
-        Remove-Item $copyPath -Force
-    }
+Write-Host "Deleting previous APK outputs..."
+if (Test-Path $apkPath) {
+    Remove-Item $apkPath -Force
+}
+if (Test-Path $copyPath) {
+    Remove-Item $copyPath -Force
 }
 
 Write-Host "Running dart format..."
@@ -231,60 +228,59 @@ if ($apk.LastWriteTime -lt $buildStartedAt.AddSeconds(-5)) {
     Write-Error "APK timestamp does not look fresh: $($apk.LastWriteTime)"
 }
 
+Write-Host "Copying local APK outputs..."
 Copy-Item $apkPath $copyPath -Force
-if ($createRevisionArchive) {
-    Copy-Item $apkPath $revisionPath -Force
-}
-
+Copy-Item $apkPath $revisionPath -Force
 $hash = Get-FileHash $copyPath -Algorithm SHA256
 
-if ($installAndLaunchOnPhone) {
-    Write-Host "Pushing APK to Galaxy A16 Download folder..."
-    & $adb push $copyPath $phoneDownloadPath
-    Stop-IfFailed "adb push to phone Download failed."
+Write-Host "Pushing APK to Galaxy A16 Download folder..."
+& $adb push $copyPath $phoneDownloadPath
+Stop-IfFailed "adb push to phone Download failed."
 
-    Write-Host "Force-stopping app before install..."
-    & $adb shell am force-stop $packageName
-    Stop-IfFailed "App force-stop before install failed."
+Write-Host "Verifying APK exists in Galaxy A16 Download..."
+& $adb shell ls -l $phoneDownloadPath
+Stop-IfFailed "Phone Download APK verification failed."
 
-    Write-Host "Installing/updating APK on phone..."
+Write-Host "Force-stopping app before install..."
+& $adb shell am force-stop $packageName
+Stop-IfFailed "App force-stop before install failed."
+
+Write-Host "Installing/updating APK from phone Download folder..."
+& $adb shell pm install -r -d $phoneDownloadPath
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Phone-side install failed. Trying PC-side adb install fallback..."
     & $adb install -r -d $copyPath
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "adb install failed. If you see INSTALL_FAILED_UPDATE_INCOMPATIBLE, the installed app has a different signature. Do not uninstall unless app data is backed up."
+        Write-Error "APK install failed. If INSTALL_FAILED_UPDATE_INCOMPATIBLE appears, the installed app has a different signature. Back up data before uninstalling."
     }
-
-    Write-Host "Force-stopping app after install..."
-    & $adb shell am force-stop $packageName
-    Stop-IfFailed "App force-stop after install failed."
-
-    Write-Host "Waking phone screen..."
-    & $adb shell input keyevent KEYCODE_WAKEUP
-    & $adb shell wm dismiss-keyguard
-    Start-Sleep -Seconds 1
-
-    Write-Host "Launching fresh app instance on phone..."
-    & $adb shell am start -S -W -n $mainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
-    Stop-IfFailed "Fresh app launch failed."
-
-    Write-Host "Verifying installed package..."
-    & $adb shell pm path $packageName
-    Stop-IfFailed "Package verification failed."
-
-    Write-Host "Verifying APK exists in phone Download..."
-    & $adb shell ls -l $phoneDownloadPath
-    Stop-IfFailed "Phone Download APK verification failed."
 }
+
+Write-Host "Force-stopping app after install..."
+& $adb shell am force-stop $packageName
+Stop-IfFailed "App force-stop after install failed."
+
+Write-Host "Waking and unlocking phone if allowed..."
+& $adb shell input keyevent KEYCODE_WAKEUP
+& $adb shell wm dismiss-keyguard
+& $adb shell input keyevent KEYCODE_MENU
+Start-Sleep -Seconds 1
+
+Write-Host "Launching fresh app instance on phone..."
+& $adb shell am start -S -W -n $mainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Direct MainActivity launch failed. Trying launcher fallback..."
+    & $adb shell monkey -p $packageName -c android.intent.category.LAUNCHER 1
+    Stop-IfFailed "Fallback app launch failed."
+}
+
+Write-Host "Verifying installed package..."
+& $adb shell pm path $packageName
+Stop-IfFailed "Package verification failed."
 
 Write-Host "APK FILES:"
-if ($createRevisionArchive) {
-    Get-Item $apkPath, $copyPath, $revisionPath |
-        Select-Object FullName, LastWriteTime, Length |
-        Format-Table -AutoSize
-} else {
-    Get-Item $apkPath, $copyPath |
-        Select-Object FullName, LastWriteTime, Length |
-        Format-Table -AutoSize
-}
+Get-Item $apkPath, $copyPath, $revisionPath |
+    Select-Object FullName, LastWriteTime, Length |
+    Format-Table -AutoSize
 
 Write-Host "DONE"
 Write-Host "COPY THIS APK:"
