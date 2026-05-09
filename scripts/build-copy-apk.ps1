@@ -56,6 +56,19 @@ function Get-AppVersionInfo {
     }
 }
 
+function Write-AppVersionFile {
+    param([hashtable]$VersionInfo)
+
+    $appVersionPath = "$project\lib\app_version.dart"
+
+    $content = "const String appVersion = '$($VersionInfo.FullVersion)';
+const String appVersionName = '$($VersionInfo.VersionName)';
+const String appBuildNumber = '$($VersionInfo.BuildNumber)';
+"
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($appVersionPath, $content, $utf8NoBom)
+}
 function Assert-HomeScreenValid {
     $homePath = "$project\lib\screens\home_screen.dart"
     Assert-FileExists $homePath
@@ -70,7 +83,8 @@ function Assert-HomeScreenValid {
 
 Add-LocalGitExclude
 
-$versionInfo = Get-AppVersionInfo
+$versionInfo = Get-AppVersionInfoWrite-AppVersionFile $versionInfo
+
 $branch = git branch --show-current
 $commit = git rev-parse --short HEAD
 $copyFileName = "TextHelper-$($versionInfo.FileVersion)-COPY-THIS.apk"
