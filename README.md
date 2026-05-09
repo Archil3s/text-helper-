@@ -289,3 +289,21 @@ Every revision build:
 Windows Explorer location:
 
     This PC\Galaxy A16\Internal storage\Download\TextHelper-COPY-THIS.apk
+
+
+## Future GPT development workflow
+
+Future GPT/chat sessions should follow:
+
+[Future GPT PowerShell workflow](docs/future-gpt-powershell-workflow.md)
+
+Default build/test/install command:
+
+    .\scripts\build-copy-apk.ps1
+
+This command builds a fresh APK, pushes it to the Galaxy A16 Download folder, installs/updates it, force-stops the app, and relaunches it.
+
+Phone APK location:
+
+    This PC\Galaxy A16\Internal storage\Download\TextHelper-COPY-THIS.apk
+- Core Regression Checks screen with a manual release gate for SMS scheduling, reminders, background sending, safety screens, backup, access-state visibility, and version-title checks

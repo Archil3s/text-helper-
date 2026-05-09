@@ -274,19 +274,28 @@ These are ranked by review frequency, trust impact, and risk of users uninstalli
    - Suspicious phone-number warnings added
    - Large import and high-volume send safety guidance added
 
-9. - [ ] Add update-safe migration checks
+9. - [x] Add update-safe migration checks
    - Versioned local data migrations
    - Pre-update backup reminder
    - Detect empty data after app version changes
    - Restore prompts if reminders or contacts disappear unexpectedly
    - Prevent scheduled reminders being wiped after updates
+   - Update Safety screen added
+   - Update-safe migration service added
+   - Pre-update backup guidance added
+   - Empty data / restore prompt checks added
+   - Scheduled reminder protection warning added
 
-10. - [ ] Add core feature regression checks
+10. - [x] Add core feature regression checks
    - Confirm SMS scheduling remains visible after every update
    - Confirm reminder creation remains visible after every update
    - Confirm missed-call / after-call features remain visible if supported
    - Confirm paid/free access state does not hide previously available core SMS features unexpectedly
    - Add a release checklist for core screens, navigation entries, and feature flags
+   - Core Regression Checks screen added to Home
+   - Copyable release checklist added
+   - Manual pass/fail release gate added
+   - SMS scheduling, reminder creation, background, safety, backup, access-state, missed-call gate, and version-title checks added
 
 11. - [ ] Add missed-call auto-reply and after-call reminder workflow
    - Auto text for missed calls if permissions and Android policy allow it
