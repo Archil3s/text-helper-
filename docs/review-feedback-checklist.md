@@ -281,17 +281,70 @@ These are ranked by review frequency, trust impact, and risk of users uninstalli
    - Restore prompts if reminders or contacts disappear unexpectedly
    - Prevent scheduled reminders being wiped after updates
 
-10. - [ ] Add ads/no-ads product policy
-   - State whether the app has ads or is ad-free
-   - If ads are ever added, avoid full-screen blocking ads during critical scheduling flows
-   - Never show ads over send/queue confirmation screens
-   - Avoid loud/video ads in appointment/reminder workflows
+10. - [ ] Add core feature regression checks
+   - Confirm SMS scheduling remains visible after every update
+   - Confirm reminder creation remains visible after every update
+   - Confirm missed-call / after-call features remain visible if supported
+   - Confirm paid/free access state does not hide previously available core SMS features unexpectedly
+   - Add a release checklist for core screens, navigation entries, and feature flags
+
+11. - [ ] Add missed-call auto-reply and after-call reminder workflow
+   - Auto text for missed calls if permissions and Android policy allow it
+   - After-call popup for creating a reminder or follow-up SMS
+   - Clear setup guide for call log/phone permissions if needed
+   - Test mode for missed-call auto-reply
+   - Diagnostics when the phone cannot detect missed calls or background call events
+
+12. - [ ] Add purchase restore and subscription clarity screen
+   - Restore lifetime/premium purchase state after phone upgrade or reinstall
+   - Explain subscription, trial, lifetime, and free limits clearly before purchase
+   - Show current entitlement state in-app
+   - Add troubleshooting path for paid users who lose access
+   - Keep core local SMS data separate from purchase state
+
+13. - [ ] Add support, refund, and cancel-subscription route
+   - Clear support screen with email/contact route
+   - Clear refund/request help copy
+   - Clear cancel-subscription instructions
+   - Local diagnostic attachment/copy flow for support requests
+   - Avoid asking users to update reviews before confirming the issue is fixed
+
+14. - [ ] Add sender identity policy
+   - Explain SMS sends from the user phone/SIM number
+   - Explain the app cannot hide sender ID
+   - Explain the app cannot spoof another number
+   - Explain that Messenger/WhatsApp identity is controlled by those apps if those platforms are ever supported
+
+15. - [ ] Add simple mode and feature visibility controls
+   - Hide unused modules from Home
+   - Keep SMS scheduling and reminders prominent
+   - Reduce taps for common send/schedule flows
+   - Let users show/hide advanced modules
+   - Keep critical safety/permission warnings visible even in simple mode
+
+16. - [ ] Add delayed review prompt rules
+   - Do not ask for a review on first launch
+   - Do not ask for a review immediately after trial start
+   - Only ask after successful sends or meaningful successful setup
+   - Suppress review prompts after failures, restore issues, or support requests
+
+17. - [ ] Add country and foreign-number blocking rules for auto-reply
+   - Option to block auto-replies to foreign numbers
+   - Option to allow only selected country codes
+   - Warn before auto-replying to unknown international numbers
+   - Apply the rule to missed-call and SMS auto-reply flows if those flows are added
+
+18. - [ ] Add WhatsApp Business label/import expectation note
+   - Explain that WhatsApp Business labels are not SMS contact groups
+   - Explain that Text Helper cannot directly read WhatsApp Business color labels unless explicitly implemented later
+   - Suggest CSV/contact import as the supported recipient-list path
+   - Avoid false expectation that WhatsApp Business message labels can become recipient lists automatically
 
 ## Deferred / skipped for now
 
-- [ ] Purchase restore and pricing clarity screen
-  - Deferred because billing, subscriptions, trials, and paid/no-ads state are not currently in scope.
-  - Revisit only if billing or paid capabilities are added later.
+- [ ] Ads/no-ads product policy
+  - Removed from the active feature list by request.
+  - Revisit only if ads, paid tiers, or an ad-free paid product are intentionally added later.
 
 ## Release gate
 
