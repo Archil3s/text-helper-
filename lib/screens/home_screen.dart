@@ -15,6 +15,7 @@ import 'delivery_receipts_screen.dart';
 import 'message_timeline_screen.dart';
 import 'notification_channel_test_screen.dart';
 import 'permissions_privacy_screen.dart';
+import 'rcs_whatsapp_policy_screen.dart';
 import 'recipient_audit_preview_screen.dart';
 import 'reliability_dashboard_screen.dart';
 import 'schedule_validation_screen.dart';
@@ -104,6 +105,13 @@ class HomeScreen extends StatelessWidget {
               subtitle:
                   'Copy device, permission, queue, failure, and background health diagnostics.',
               onTap: () => _open(context, const CrashDiagnosticsScreen()),
+            ),
+            _HomeButton(
+              icon: CupertinoIcons.chat_bubble_2_fill,
+              title: 'RCS & WhatsApp Policy',
+              subtitle:
+                  'Clarify that automation is SMS-only and does not send RCS or WhatsApp.',
+              onTap: () => _open(context, const RcsWhatsAppPolicyScreen()),
             ),
             _HomeButton(
               icon: Icons.privacy_tip_outlined,

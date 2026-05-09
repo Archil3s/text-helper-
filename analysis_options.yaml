@@ -1,7 +1,10 @@
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  errors:
+    unused_element_parameter: ignore
+
 linter:
   rules:
     prefer_const_constructors: false
-    prefer_const_literals_to_create_immutables: true
-    unused_element_parameter: false
+    prefer_const_literals_to_create_immutables: false

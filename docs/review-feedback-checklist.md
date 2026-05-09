@@ -246,11 +246,17 @@ These are ranked by review frequency, trust impact, and risk of users uninstalli
    - One-tap copy to clipboard added
    - Local crash/freeze notes field added
 
-7. - [ ] Add RCS and WhatsApp expectation policy or roadmap
+7. - [x] Add RCS and WhatsApp expectation policy or roadmap
    - Clearly state SMS support boundaries
    - Clearly state RCS is not controlled by this app unless explicitly implemented
    - Clearly state WhatsApp automation is not currently part of SMS scheduling
    - Prevent false expectation from users looking for WhatsApp/RCS auto-replies
+   - RCS & WhatsApp Policy screen added to Home
+   - Policy clearly states Text Helper is SMS-only
+   - Policy states RCS is controlled by Messages/carrier/Android settings, not this app
+   - Policy states WhatsApp and WhatsApp Business automation are not supported
+   - Policy states MMS/media/chat-app auto-replies are not supported
+   - Reviewed state and copy-to-clipboard policy text added
 
 8. - [ ] Add bulk-send safety and large import limits
    - Select-all contacts/group tooling
