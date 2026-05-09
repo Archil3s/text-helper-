@@ -46,6 +46,7 @@ This checklist tracks what is done, what is partly done, and what should be fini
 - [x] SMS and MMS Policy screen exists.
 - [x] RCS and WhatsApp Policy screen exists.
 - [x] WhatsApp Handoff screen exists.
+- [x] Update Spotlight screen exists.
 - [x] Native SMS service exists through the Flutter method channel.
 - [x] Android SMS backend uses SmsManager for real SMS sending.
 - [x] Android sent and delivered callback plumbing exists.
@@ -61,6 +62,7 @@ This checklist tracks what is done, what is partly done, and what should be fini
 - [x] Show sent-to-Android versus carrier-delivered status clearly.
 - [x] Verify delivery receipts update the UI after Android callbacks.
 - [x] WhatsApp Handoff opens the WhatsApp composer and requires manual send.
+- [x] Open and highlight the edited app section after each update.
 - [x] Build a real pending Send Queue view.
 - [x] Add cancel controls for pending queued messages.
 - [x] Add retry controls for failed messages.
