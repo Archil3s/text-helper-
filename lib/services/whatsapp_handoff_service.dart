@@ -5,6 +5,14 @@ class WhatsAppHandoffService {
     'text_helper/whatsapp_handoff',
   );
 
+  Future<bool> isWhatsAppInstalled() async {
+    final installed = await _channel.invokeMethod<bool>(
+      'isWhatsAppInstalled',
+    );
+
+    return installed ?? false;
+  }
+
   Future<bool> launchComposer({
     required String phoneNumber,
     required String message,

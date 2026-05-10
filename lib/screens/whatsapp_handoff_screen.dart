@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/nz_sms_recipient.dart';
 import '../models/send_log_entry.dart';
@@ -29,6 +30,7 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
   NzSmsRecipient? _selectedContact;
 
   bool _loading = true;
+  bool _whatsAppInstalled = false;
   bool _opening = false;
   String _status =
       'Select an approved contact, write a message, then open WhatsApp. You must press Send manually in WhatsApp.';
@@ -49,6 +51,8 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
     final contacts = await _recipientStore.loadRecipients();
     final approved = contacts.where((contact) => contact.consented).toList();
 
+    final installed = await _handoffService.isWhatsAppInstalled();
+
     if (!mounted) {
       return;
     }
@@ -57,6 +61,7 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
       _contacts = approved;
       _selectedContact = approved.isEmpty ? null : approved.first;
       _loading = false;
+      _whatsAppInstalled = installed;
     });
   }
 
@@ -235,6 +240,45 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
+                if (!_whatsAppInstalled)
+                  Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      const Text(
+                        'WhatsApp is not installed on this device.',
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          await Clipboard.setData(
+                            ClipboardData(
+                              text: _messageController.text,
+                            ),
+                          );
+                        },
+                        icon: const Icon(CupertinoIcons.doc_on_doc),
+                        label: const Text('Copy Message'),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final contact = _selectedContact;
+
+                          if (contact == null) {
+                            return;
+                          }
+
+                          await Clipboard.setData(
+                            ClipboardData(
+                              text: contact.number,
+                            ),
+                          );
+                        },
+                        icon: const Icon(CupertinoIcons.phone),
+                        label: const Text('Copy Number'),
+                      ),
+                    ],
+                  ),
                 FilledButton.icon(
                   onPressed: _canOpen ? _openWhatsApp : null,
                   icon: _opening
