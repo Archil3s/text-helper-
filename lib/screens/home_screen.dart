@@ -119,8 +119,9 @@ class HomeScreen extends StatelessWidget {
             ),
             _HomeButton(
               icon: CupertinoIcons.arrow_up_right_square_fill,
-              title: 'WhatsApp Handoff',
-              subtitle: 'Open WhatsApp with a draft. You manually press Send.',
+              title: 'WhatsApp Auto Prepare V2',
+              subtitle:
+                  'Prepare a WhatsApp draft automatically, then press Send manually.',
               onTap: () => _open(context, const WhatsAppHandoffScreen()),
             ),
             _HomeButton(

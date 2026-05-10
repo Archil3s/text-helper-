@@ -31,7 +31,7 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
   bool _loading = true;
   bool _opening = false;
   String _status =
-      'Select an approved contact, write a message, then open WhatsApp. You must press Send manually in WhatsApp.';
+      'Auto Prepare V2 is ready. Select a contact, write a message, then prepare the WhatsApp draft.';
 
   @override
   void initState() {
@@ -170,7 +170,7 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       appBar: AppBar(
-        title: const Text('WhatsApp Handoff'),
+        title: const Text('WhatsApp Auto Prepare V2'),
         centerTitle: false,
         actions: [
           IconButton(
@@ -245,7 +245,7 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
                         )
                       : const Icon(CupertinoIcons.arrow_up_right_square_fill),
                   label: Text(
-                    _opening ? 'Opening...' : 'Open WhatsApp Composer',
+                    _opening ? 'Opening...' : 'Auto Prepare WhatsApp Draft V2',
                   ),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(62),
@@ -285,7 +285,7 @@ class _HeroCard extends StatelessWidget {
           ),
           SizedBox(height: 16),
           Text(
-            'WhatsApp Handoff',
+            'WhatsApp Auto Prepare V2',
             style: TextStyle(
               color: Colors.white,
               fontSize: 31,
@@ -295,7 +295,7 @@ class _HeroCard extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            'Open WhatsApp with a prefilled draft. Text Helper does not auto-send WhatsApp messages.',
+            'Auto Prepare V2 opens WhatsApp with the draft filled in. You still press Send manually.',
             style: TextStyle(
               color: Colors.white70,
               height: 1.35,
@@ -389,7 +389,7 @@ class _PolicyCard extends StatelessWidget {
           SizedBox(width: 14),
           Expanded(
             child: Text(
-              'This is a manual handoff. Text Helper opens WhatsApp with a draft, but the user must press Send in WhatsApp. No delivery, background scheduling, or auto-send is claimed.',
+              'Auto Prepare V2 is on. Text Helper fills the WhatsApp draft and opens the composer. WhatsApp still requires the final Send tap.',
               style: TextStyle(
                 color: CupertinoColors.secondaryLabel,
                 height: 1.35,
