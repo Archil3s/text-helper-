@@ -106,7 +106,7 @@ class _CommunicationTimelineScreenState
                       decoration: BoxDecoration(
                         color: _stateColor(
                           event.state,
-                        ).withOpacity(0.15),
+                        ).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(50),
                       ),
                       child: Text(

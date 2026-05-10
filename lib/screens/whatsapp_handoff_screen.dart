@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../models/nz_sms_recipient.dart';
 import '../models/send_log_entry.dart';
@@ -30,7 +29,6 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
   NzSmsRecipient? _selectedContact;
 
   bool _loading = true;
-  bool _whatsAppInstalled = false;
   bool _opening = false;
   String _status =
       'Select an approved contact, write a message, then open WhatsApp. You must press Send manually in WhatsApp.';
@@ -51,8 +49,6 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
     final contacts = await _recipientStore.loadRecipients();
     final approved = contacts.where((contact) => contact.consented).toList();
 
-    final installed = await _handoffService.isWhatsAppInstalled();
-
     if (!mounted) {
       return;
     }
@@ -61,7 +57,6 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
       _contacts = approved;
       _selectedContact = approved.isEmpty ? null : approved.first;
       _loading = false;
-      _whatsAppInstalled = installed;
     });
   }
 
@@ -190,8 +185,6 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
               padding: const EdgeInsets.all(20),
               children: [
                 const _HeroCard(),
-                const SizedBox(height: 12),
-                const _LatestWhatsAppUpdateCard(),
                 const SizedBox(height: 20),
                 _StatusCard(status: _status),
                 const SizedBox(height: 12),
@@ -242,45 +235,6 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                if (!_whatsAppInstalled)
-                  Column(
-                    children: [
-                      const SizedBox(height: 12),
-                      const Text(
-                        'WhatsApp is not installed on this device.',
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          await Clipboard.setData(
-                            ClipboardData(
-                              text: _messageController.text,
-                            ),
-                          );
-                        },
-                        icon: const Icon(CupertinoIcons.doc_on_doc),
-                        label: const Text('Copy Message'),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final contact = _selectedContact;
-
-                          if (contact == null) {
-                            return;
-                          }
-
-                          await Clipboard.setData(
-                            ClipboardData(
-                              text: contact.number,
-                            ),
-                          );
-                        },
-                        icon: const Icon(CupertinoIcons.phone),
-                        label: const Text('Copy Number'),
-                      ),
-                    ],
-                  ),
                 FilledButton.icon(
                   onPressed: _canOpen ? _openWhatsApp : null,
                   icon: _opening
@@ -306,9 +260,6 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
                 ),
               ],
             ),
-),
-],
-),
     );
   }
 }
@@ -353,9 +304,6 @@ class _HeroCard extends StatelessWidget {
           ),
         ],
       ),
-),
-],
-),
     );
   }
 }
@@ -421,9 +369,6 @@ class _ContactCard extends StatelessWidget {
           ],
         ),
       ),
-),
-],
-),
     );
   }
 }
@@ -454,9 +399,6 @@ class _PolicyCard extends StatelessWidget {
           ),
         ],
       ),
-),
-],
-),
     );
   }
 }
@@ -487,9 +429,6 @@ class _StatusCard extends StatelessWidget {
           ),
         ],
       ),
-),
-],
-),
     );
   }
 }
@@ -506,9 +445,6 @@ class _SectionTitle extends StatelessWidget {
       style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w900,
           ),
-),
-],
-),
     );
   }
 }
@@ -545,35 +481,3 @@ class _SurfaceCard extends StatelessWidget {
     );
   }
 }
-
-
-class _LatestWhatsAppUpdateCard extends StatelessWidget {
-  const _LatestWhatsAppUpdateCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return const _SurfaceCard(
-      borderColor: Color(0xFF0A84FF),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            CupertinoIcons.sparkles,
-            color: Color(0xFF0A84FF),
-          ),
-          SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              'Latest WhatsApp Update: this section was changed. Check installed detection, fallback actions, and manual handoff behavior.',
-              style: TextStyle(
-                height: 1.35,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
