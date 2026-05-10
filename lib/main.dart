@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import 'screens/whatsapp_business_sender_screen.dart';
+import 'screens/sms_rcs_dashboard_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +28,7 @@ class TextHelperApp extends StatelessWidget {
           foregroundColor: CupertinoColors.label,
         ),
       ),
-      home: const WhatsAppBusinessSenderScreen(),
+      home: const SmsRcsDashboardScreen(),
     );
   }
 }
