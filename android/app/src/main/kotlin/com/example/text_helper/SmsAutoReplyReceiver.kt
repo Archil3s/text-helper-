@@ -14,6 +14,16 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
         }
 
         val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+
+        val masterEnabled = prefs.getBoolean(
+            "flutter.text_helper_auto_reply_master_enabled",
+            true
+        )
+
+        if (!masterEnabled) {
+            return
+        }
+
         val rulesRaw = prefs.getString("flutter.text_helper_auto_reply_rules", "[]") ?: "[]"
         val allowedRaw = prefs.getString("flutter.text_helper_auto_reply_allowed_numbers", "[]") ?: "[]"
 
