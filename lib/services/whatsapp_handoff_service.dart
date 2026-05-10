@@ -1,6 +1,21 @@
 import 'package:url_launcher/url_launcher.dart';
 
 class WhatsAppHandoffService {
+<<<<<<< HEAD
+=======
+  static const MethodChannel _channel = MethodChannel(
+    'text_helper/whatsapp_handoff',
+  );
+
+  Future<bool> isWhatsAppInstalled() async {
+    final installed = await _channel.invokeMethod<bool>(
+      'isWhatsAppInstalled',
+    );
+
+    return installed ?? false;
+  }
+
+>>>>>>> 7e3f768acfe4688c841349833193cf5b0589f332
   Future<bool> launchComposer({
     required String phoneNumber,
     required String message,

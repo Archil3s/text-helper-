@@ -128,6 +128,10 @@ class MainActivity : FlutterActivity() {
             whatsAppChannelName
         ).setMethodCallHandler { call, result ->
             when (call.method) {
+                
+                ""isWhatsAppInstalled"" -> {
+                    result.success(isWhatsAppInstalled())
+                }
                 "launchWhatsAppHandoff" -> {
                     val phoneNumber = call.argument<String>("phoneNumber")
                     val message = call.argument<String>("message")
@@ -150,6 +154,16 @@ class MainActivity : FlutterActivity() {
                 "getDeviceDiagnostics" -> result.success(getDeviceDiagnostics())
                 else -> result.notImplemented()
             }
+        }
+    }
+
+
+    private fun isWhatsAppInstalled(): Boolean {
+        return try {
+            packageManager.getPackageInfo(""com.whatsapp"", 0)
+            true
+        } catch (error: Exception) {
+            false
         }
     }
 
@@ -767,3 +781,4 @@ class MainActivity : FlutterActivity() {
         }
     }
 }
+
