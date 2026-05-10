@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'contact_groups_screen.dart';
 import 'home_screen.dart';
+import 'whatsapp_handoff_screen.dart';
 
 class UpdateSpotlightGate extends StatefulWidget {
   const UpdateSpotlightGate({super.key});
@@ -13,7 +14,7 @@ class UpdateSpotlightGate extends StatefulWidget {
 }
 
 class _UpdateSpotlightGateState extends State<UpdateSpotlightGate> {
-  static const String _updateId = '20260510-contact-groups-do-not-send';
+  static const String _updateId = '20260510-whatsapp-highlight-v2';
   static const String _seenKey = 'text_helper_last_seen_update_spotlight';
 
   bool _loading = true;
@@ -53,7 +54,7 @@ class _UpdateSpotlightGateState extends State<UpdateSpotlightGate> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => const ContactGroupsScreen(),
+        builder: (_) => const WhatsAppHandoffScreen(),
       ),
     );
   }
@@ -67,7 +68,7 @@ class _UpdateSpotlightGateState extends State<UpdateSpotlightGate> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => const HomeScreen(),
+        builder: (_) => const WhatsAppHandoffScreen(),
       ),
     );
   }
@@ -284,3 +285,6 @@ class _SurfaceCard extends StatelessWidget {
     );
   }
 }
+
+
+

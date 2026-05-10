@@ -260,6 +260,9 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
                 ),
               ],
             ),
+),
+],
+),
     );
   }
 }
@@ -304,6 +307,9 @@ class _HeroCard extends StatelessWidget {
           ),
         ],
       ),
+),
+],
+),
     );
   }
 }
@@ -369,6 +375,9 @@ class _ContactCard extends StatelessWidget {
           ],
         ),
       ),
+),
+],
+),
     );
   }
 }
@@ -399,6 +408,9 @@ class _PolicyCard extends StatelessWidget {
           ),
         ],
       ),
+),
+],
+),
     );
   }
 }
@@ -429,6 +441,9 @@ class _StatusCard extends StatelessWidget {
           ),
         ],
       ),
+),
+],
+),
     );
   }
 }
@@ -445,6 +460,9 @@ class _SectionTitle extends StatelessWidget {
       style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w900,
           ),
+),
+],
+),
     );
   }
 }
@@ -481,3 +499,4 @@ class _SurfaceCard extends StatelessWidget {
     );
   }
 }
+
