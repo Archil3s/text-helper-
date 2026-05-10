@@ -190,6 +190,8 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
               padding: const EdgeInsets.all(20),
               children: [
                 const _HeroCard(),
+                const SizedBox(height: 12),
+                const _LatestWhatsAppUpdateCard(),
                 const SizedBox(height: 20),
                 _StatusCard(status: _status),
                 const SizedBox(height: 12),
@@ -540,6 +542,37 @@ class _SurfaceCard extends StatelessWidget {
         ],
       ),
       child: child,
+    );
+  }
+}
+
+
+class _LatestWhatsAppUpdateCard extends StatelessWidget {
+  const _LatestWhatsAppUpdateCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _SurfaceCard(
+      borderColor: Color(0xFF0A84FF),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            CupertinoIcons.sparkles,
+            color: Color(0xFF0A84FF),
+          ),
+          SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              'Latest WhatsApp Update: this section was changed. Check installed detection, fallback actions, and manual handoff behavior.',
+              style: TextStyle(
+                height: 1.35,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

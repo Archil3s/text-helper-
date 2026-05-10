@@ -15,9 +15,9 @@ class UpdateSpotlightGate extends StatefulWidget {
 
 class _UpdateSpotlightGateState extends State<UpdateSpotlightGate> {
 <<<<<<< HEAD
-  static const String _updateId = '20260510-whatsapp-highlight-v2';
+  static const String _updateId = '20260510-whatsapp-highlight-v3';
 =======
-  static const String _updateId = '20260510-whatsapp-installed-detection';
+  static const String _updateId = '20260510-whatsapp-highlight-v3';
 >>>>>>> 7e3f768acfe4688c841349833193cf5b0589f332
   static const String _seenKey = 'text_helper_last_seen_update_spotlight';
 
@@ -142,7 +142,7 @@ class UpdateSpotlightScreen extends StatelessWidget {
                         ),
                         SizedBox(height: 6),
                         Text(
-                          'Contact Groups',
+                          'WhatsApp Handoff',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
@@ -151,7 +151,7 @@ class UpdateSpotlightScreen extends StatelessWidget {
                         ),
                         SizedBox(height: 6),
                         Text(
-                          'This update points you to the newest edited area so it is easy to test after installing.',
+                          'This update opens the WhatsApp Handoff section so you can test the latest changed area after installing.',
                           style: TextStyle(
                             color: CupertinoColors.secondaryLabel,
                             height: 1.35,
@@ -289,6 +289,9 @@ class _SurfaceCard extends StatelessWidget {
     );
   }
 }
+
+
+
 
 
 
