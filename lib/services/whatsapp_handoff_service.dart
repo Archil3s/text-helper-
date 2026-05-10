@@ -5,18 +5,34 @@ class WhatsAppHandoffService {
     'text_helper/whatsapp_handoff',
   );
 
+  Future<bool> isWhatsAppInstalled() async {
+    try {
+      final installed = await _channel.invokeMethod<bool>(
+        'isWhatsAppInstalled',
+      );
+
+      return installed ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<bool> launchComposer({
     required String phoneNumber,
     required String message,
   }) async {
-    final opened = await _channel.invokeMethod<bool>(
-      'launchWhatsAppHandoff',
-      <String, Object?>{
-        'phoneNumber': phoneNumber,
-        'message': message,
-      },
-    );
+    try {
+      final opened = await _channel.invokeMethod<bool>(
+        'launchWhatsAppHandoff',
+        <String, Object?>{
+          'phoneNumber': phoneNumber,
+          'message': message,
+        },
+      );
 
-    return opened ?? false;
+      return opened ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 }

@@ -15,28 +15,61 @@ class WhatsAppHandoffScreen extends StatefulWidget {
   State<WhatsAppHandoffScreen> createState() => _WhatsAppHandoffScreenState();
 }
 
+class _WhatsAppTemplate {
+  const _WhatsAppTemplate({
+    required this.title,
+    required this.message,
+  });
+
+  final String title;
+  final String message;
+}
+
 class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
+  static const List<_WhatsAppTemplate> _templates = [
+    _WhatsAppTemplate(
+      title: 'Appointment reminder',
+      message:
+          'Hi {name}, this is a reminder about your appointment. Please reply if you need to change it.',
+    ),
+    _WhatsAppTemplate(
+      title: 'Follow up',
+      message:
+          'Hi {name}, just following up on my previous message. Let me know when you have a chance.',
+    ),
+    _WhatsAppTemplate(
+      title: 'Confirmation',
+      message:
+          'Hi {name}, this confirms your booking. Please reply if anything changes.',
+    ),
+    _WhatsAppTemplate(
+      title: 'Running late',
+      message:
+          'Hi {name}, I am running a little late and will update you as soon as possible.',
+    ),
+  ];
+
   final NzRecipientStore _recipientStore = NzRecipientStore();
   final SendLogStore _sendLogStore = SendLogStore();
   final MessageTimelineService _timelineService = MessageTimelineService();
   final WhatsAppHandoffService _handoffService = WhatsAppHandoffService();
 
-  final TextEditingController _messageController = TextEditingController(
-    text: 'Hi, this is a WhatsApp handoff draft from Text Helper.',
-  );
+  final TextEditingController _messageController = TextEditingController();
 
   List<NzSmsRecipient> _contacts = <NzSmsRecipient>[];
   NzSmsRecipient? _selectedContact;
 
   bool _loading = true;
   bool _opening = false;
+  bool _whatsAppInstalled = false;
+
   String _status =
-      'Auto Prepare V2 is ready. Select a contact, write a message, then prepare the WhatsApp draft.';
+      'Select an approved contact, choose a template, then open WhatsApp. You will press Send manually inside WhatsApp.';
 
   @override
   void initState() {
     super.initState();
-    _loadContacts();
+    _loadScreen();
   }
 
   @override
@@ -45,18 +78,43 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
     super.dispose();
   }
 
-  Future<void> _loadContacts() async {
+  Future<void> _loadScreen() async {
     final contacts = await _recipientStore.loadRecipients();
     final approved = contacts.where((contact) => contact.consented).toList();
+    final installed = await _handoffService.isWhatsAppInstalled();
 
     if (!mounted) {
       return;
     }
 
+    final selected = approved.isEmpty ? null : approved.first;
+
     setState(() {
       _contacts = approved;
-      _selectedContact = approved.isEmpty ? null : approved.first;
+      _selectedContact = selected;
+      _whatsAppInstalled = installed;
       _loading = false;
+    });
+
+    if (selected != null && _messageController.text.trim().isEmpty) {
+      _applyTemplate(_templates.first);
+    }
+  }
+
+  String _renderTemplate(_WhatsAppTemplate template) {
+    final contact = _selectedContact;
+    final name = contact == null || contact.name.trim().isEmpty
+        ? 'there'
+        : contact.name.trim();
+
+    return template.message.replaceAll('{name}', name);
+  }
+
+  void _applyTemplate(_WhatsAppTemplate template) {
+    _messageController.text = _renderTemplate(template);
+    setState(() {
+      _status =
+          'Template loaded: ${template.title}. Review before opening WhatsApp.';
     });
   }
 
@@ -85,13 +143,18 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
     final contact = _selectedContact;
     final message = _messageController.text.trim();
 
-    if (contact == null || message.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Select an approved contact and enter a message.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    if (contact == null) {
+      _showSnack('Add or select an approved contact first.');
+      return;
+    }
+
+    if (message.isEmpty) {
+      _showSnack('Write a WhatsApp message first.');
+      return;
+    }
+
+    if (!_whatsAppInstalled) {
+      _showSnack('WhatsApp was not detected. Install WhatsApp and try again.');
       return;
     }
 
@@ -108,57 +171,48 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
       contact: contact,
       message: message,
       status: 'whatsapp_handoff_attempting',
-      detail: 'WhatsApp handoff started. This is not an automated send.',
+      detail: 'Manual WhatsApp handoff started.',
     );
 
-    try {
-      final opened = await _handoffService.launchComposer(
-        phoneNumber: contact.number,
-        message: message,
-      );
+    final opened = await _handoffService.launchComposer(
+      phoneNumber: contact.number,
+      message: message,
+    );
 
-      await _recordHandoff(
-        id: handoffId,
-        contact: contact,
-        message: message,
-        status: opened ? 'whatsapp_handoff' : 'whatsapp_handoff_failed',
-        detail: opened
-            ? 'WhatsApp composer opened. User must press Send manually in WhatsApp.'
-            : 'Could not open WhatsApp composer on this device.',
-      );
+    await _recordHandoff(
+      id: handoffId,
+      contact: contact,
+      message: message,
+      status: opened ? 'whatsapp_handoff_opened' : 'whatsapp_handoff_failed',
+      detail: opened
+          ? 'WhatsApp composer opened. User must press Send manually.'
+          : 'Could not open WhatsApp composer.',
+    );
 
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _opening = false;
-        _status = opened
-            ? 'WhatsApp composer opened. Press Send manually in WhatsApp.'
-            : 'Could not open WhatsApp. Check that WhatsApp is installed and the number uses international format.';
-      });
-    } catch (error) {
-      await _recordHandoff(
-        id: handoffId,
-        contact: contact,
-        message: message,
-        status: 'whatsapp_handoff_failed',
-        detail: error.toString(),
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _opening = false;
-        _status = 'WhatsApp handoff failed: $error';
-      });
+    if (!mounted) {
+      return;
     }
+
+    setState(() {
+      _opening = false;
+      _status = opened
+          ? 'WhatsApp opened. Press Send manually inside WhatsApp.'
+          : 'Could not open WhatsApp. Check the app install and phone number format.';
+    });
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   bool get _canOpen {
     return !_opening &&
+        _whatsAppInstalled &&
         _selectedContact != null &&
         _messageController.text.trim().isNotEmpty;
   }
@@ -170,11 +224,11 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       appBar: AppBar(
-        title: const Text('WhatsApp Auto Prepare V2'),
+        title: const Text('WhatsApp Manual Handoff'),
         centerTitle: false,
         actions: [
           IconButton(
-            onPressed: _opening ? null : _loadContacts,
+            onPressed: _opening ? null : _loadScreen,
             icon: const Icon(CupertinoIcons.refresh),
           ),
         ],
@@ -185,7 +239,9 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
               padding: const EdgeInsets.all(20),
               children: [
                 const _HeroCard(),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
+                _InstallStatusCard(installed: _whatsAppInstalled),
+                const SizedBox(height: 12),
                 _StatusCard(status: _status),
                 const SizedBox(height: 12),
                 const _PolicyCard(),
@@ -195,7 +251,7 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
                 if (_contacts.isEmpty)
                   const _SurfaceCard(
                     child: Text(
-                      'No approved contacts found. Add a consented contact first.',
+                      'No approved contacts found. Add a contact and mark consent as approved first.',
                       style: TextStyle(
                         color: CupertinoColors.secondaryLabel,
                         height: 1.35,
@@ -216,12 +272,31 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
                     ),
                   ),
                 const SizedBox(height: 20),
+                const _SectionTitle('Templates'),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: _templates
+                      .map(
+                        (template) => ActionChip(
+                          label: Text(template.title),
+                          onPressed: _opening
+                              ? null
+                              : () {
+                                  _applyTemplate(template);
+                                },
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 20),
                 const _SectionTitle('Message draft'),
                 const SizedBox(height: 12),
                 _SurfaceCard(
                   child: TextField(
                     controller: _messageController,
-                    maxLines: 5,
+                    maxLines: 6,
                     decoration: InputDecoration(
                       hintText: 'Write WhatsApp draft...',
                       filled: true,
@@ -245,7 +320,7 @@ class _WhatsAppHandoffScreenState extends State<WhatsAppHandoffScreen> {
                         )
                       : const Icon(CupertinoIcons.arrow_up_right_square_fill),
                   label: Text(
-                    _opening ? 'Opening...' : 'Auto Prepare WhatsApp Draft V2',
+                    _opening ? 'Opening...' : 'Open WhatsApp Draft',
                   ),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(62),
@@ -271,9 +346,9 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: const Color(0xFF075E54),
-        borderRadius: BorderRadius.circular(32),
+      decoration: const BoxDecoration(
+        color: Color(0xFF075E54),
+        borderRadius: BorderRadius.all(Radius.circular(32)),
       ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,7 +360,7 @@ class _HeroCard extends StatelessWidget {
           ),
           SizedBox(height: 16),
           Text(
-            'WhatsApp Auto Prepare V2',
+            'WhatsApp Manual Handoff',
             style: TextStyle(
               color: Colors.white,
               fontSize: 31,
@@ -295,11 +370,46 @@ class _HeroCard extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            'Auto Prepare V2 opens WhatsApp with the draft filled in. You still press Send manually.',
+            'Choose a consented contact, load a template, open WhatsApp, then press Send manually.',
             style: TextStyle(
               color: Colors.white70,
               height: 1.35,
               fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InstallStatusCard extends StatelessWidget {
+  const _InstallStatusCard({required this.installed});
+
+  final bool installed;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SurfaceCard(
+      child: Row(
+        children: [
+          Icon(
+            installed
+                ? CupertinoIcons.check_mark_circled_solid
+                : CupertinoIcons.xmark_circle_fill,
+            color:
+                installed ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              installed
+                  ? 'WhatsApp detected on this phone.'
+                  : 'WhatsApp was not detected on this phone.',
+              style: const TextStyle(
+                height: 1.3,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -354,6 +464,15 @@ class _ContactCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Consent approved',
+                    style: TextStyle(
+                      color: Color(0xFF16A34A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -389,7 +508,7 @@ class _PolicyCard extends StatelessWidget {
           SizedBox(width: 14),
           Expanded(
             child: Text(
-              'Auto Prepare V2 is on. Text Helper fills the WhatsApp draft and opens the composer. WhatsApp still requires the final Send tap.',
+              'Manual handoff only. Text Helper prepares the draft and opens WhatsApp. It does not tap Send or bypass WhatsApp controls.',
               style: TextStyle(
                 color: CupertinoColors.secondaryLabel,
                 height: 1.35,
@@ -469,11 +588,11 @@ class _SurfaceCard extends StatelessWidget {
         border: borderColor == null
             ? null
             : Border.all(color: borderColor!, width: 2),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.045),
+            color: Color(0x10000000),
             blurRadius: 16,
-            offset: const Offset(0, 8),
+            offset: Offset(0, 8),
           ),
         ],
       ),

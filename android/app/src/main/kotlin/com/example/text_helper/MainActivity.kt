@@ -129,7 +129,7 @@ class MainActivity : FlutterActivity() {
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 
-                ""isWhatsAppInstalled"" -> {
+                "isWhatsAppInstalled" -> {
                     result.success(isWhatsAppInstalled())
                 }
                 "launchWhatsAppHandoff" -> {
@@ -160,7 +160,7 @@ class MainActivity : FlutterActivity() {
 
     private fun isWhatsAppInstalled(): Boolean {
         return try {
-            packageManager.getPackageInfo(""com.whatsapp"", 0)
+            packageManager.getPackageInfo("com.whatsapp", 0)
             true
         } catch (error: Exception) {
             false

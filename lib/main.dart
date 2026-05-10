@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import 'screens/update_spotlight_screen.dart';
+import 'screens/whatsapp_business_sender_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +28,7 @@ class TextHelperApp extends StatelessWidget {
           foregroundColor: CupertinoColors.label,
         ),
       ),
-      home: const UpdateSpotlightGate(),
+      home: const WhatsAppBusinessSenderScreen(),
     );
   }
 }
