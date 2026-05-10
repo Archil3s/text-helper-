@@ -1,4 +1,5 @@
 import '../models/appointment_reminder.dart';
+import '../models/nz_sms_recipient.dart';
 import '../models/send_log_entry.dart';
 import 'contact_group_store.dart';
 import 'send_log_store.dart';
@@ -28,6 +29,31 @@ class DoNotSendService {
       return const DoNotSendResult(allowed: true);
     }
 
+    return checkContactId(
+      contactId: reminder.contactId,
+      phoneNumber: reminder.phoneNumber,
+    );
+  }
+
+  Future<DoNotSendResult> checkContact(NzSmsRecipient contact) async {
+    return checkContactId(
+      contactId: contact.id,
+      phoneNumber: contact.number,
+      contactName: contact.name,
+    );
+  }
+
+  Future<DoNotSendResult> checkContactId({
+    required String contactId,
+    String? phoneNumber,
+    String? contactName,
+  }) async {
+    final id = contactId.trim();
+
+    if (id.isEmpty) {
+      return const DoNotSendResult(allowed: true);
+    }
+
     final groups = await _groupStore.loadGroups();
 
     for (final group in groups) {
@@ -35,11 +61,27 @@ class DoNotSendService {
         continue;
       }
 
-      if (group.contactIds.contains(reminder.contactId)) {
+      if (group.contactIds.contains(id)) {
+        final who = contactName == null || contactName.trim().isEmpty
+            ? phoneNumber ?? id
+            : contactName;
+
         return DoNotSendResult(
           allowed: false,
-          reason: 'Blocked: contact is in Do Not Send group "${group.name}".',
+          reason: 'Blocked: $who is in Do Not Send group "${group.name}".',
         );
+      }
+    }
+
+    return const DoNotSendResult(allowed: true);
+  }
+
+  Future<DoNotSendResult> checkContacts(List<NzSmsRecipient> contacts) async {
+    for (final contact in contacts) {
+      final result = await checkContact(contact);
+
+      if (!result.allowed) {
+        return result;
       }
     }
 
@@ -60,6 +102,26 @@ class DoNotSendService {
         status: 'blocked',
         errorMessage: reason,
         reminderId: reminder.id,
+      ),
+    );
+  }
+
+  Future<void> logBlockedContact({
+    required NzSmsRecipient contact,
+    required String message,
+    required String reason,
+    String? reminderId,
+  }) async {
+    await _logStore.addLog(
+      SendLogEntry(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        contactName: contact.name,
+        phoneNumber: contact.number,
+        message: message,
+        createdAt: DateTime.now(),
+        status: 'blocked',
+        errorMessage: reason,
+        reminderId: reminderId,
       ),
     );
   }

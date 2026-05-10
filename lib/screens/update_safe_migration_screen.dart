@@ -268,13 +268,13 @@ class _MetricGrid extends StatelessWidget {
           icon: CupertinoIcons.device_phone_portrait,
           title: 'App version',
           value:
-              'Current ${report.currentAppVersion} • Previous ${report.lastAppVersion}',
+              'Current ${report.currentAppVersion} - Previous ${report.lastAppVersion}',
         ),
         _InfoCard(
           icon: CupertinoIcons.archivebox_fill,
           title: 'Local data',
           value:
-              '${report.contactsCount} contacts • ${report.remindersCount} reminders',
+              '${report.contactsCount} contacts - ${report.remindersCount} reminders',
         ),
         _InfoCard(
           icon: CupertinoIcons.clock_fill,

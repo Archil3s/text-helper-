@@ -6,6 +6,7 @@ import '../models/contact_group.dart';
 import '../models/nz_sms_recipient.dart';
 import '../services/appointment_reminder_store.dart';
 import '../services/contact_group_store.dart';
+import '../services/do_not_send_service.dart';
 import '../services/nz_recipient_store.dart';
 
 class ContactGroupsScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _ContactGroupsScreenState extends State<ContactGroupsScreen> {
   final ContactGroupStore _groupStore = ContactGroupStore();
   final NzRecipientStore _recipientStore = NzRecipientStore();
   final AppointmentReminderStore _reminderStore = AppointmentReminderStore();
+  final DoNotSendService _doNotSendService = DoNotSendService();
 
   List<ContactGroup> _groups = <ContactGroup>[];
   List<NzSmsRecipient> _contacts = <NzSmsRecipient>[];
@@ -300,6 +302,35 @@ class _ContactGroupsScreenState extends State<ContactGroupsScreen> {
       return;
     }
 
+    final doNotSendResult = await _doNotSendService.checkContacts(recipients);
+
+    if (!doNotSendResult.allowed) {
+      final reason = doNotSendResult.reason ??
+          'Group send blocked because at least one recipient is in Do Not Send.';
+
+      for (final recipient in recipients) {
+        final recipientResult = await _doNotSendService.checkContact(recipient);
+
+        if (recipientResult.allowed) {
+          continue;
+        }
+
+        await _doNotSendService.logBlockedContact(
+          contact: recipient,
+          message: 'Group send blocked before queueing.',
+          reason: recipientResult.reason ?? reason,
+          reminderId:
+              'group-${group.id}-blocked-${DateTime.now().microsecondsSinceEpoch}',
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() => _status = reason);
+      return;
+    }
     var scheduledAt = DateTime.now().add(const Duration(minutes: 5));
     var template = 'Appointment reminder';
 
@@ -397,7 +428,7 @@ class _ContactGroupsScreenState extends State<ContactGroupsScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${group.name} • ${recipients.length} contact(s)',
+                        '${group.name} - ${recipients.length} contact(s)',
                         style: const TextStyle(
                           color: CupertinoColors.secondaryLabel,
                           fontWeight: FontWeight.w700,

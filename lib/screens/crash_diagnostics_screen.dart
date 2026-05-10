@@ -245,7 +245,7 @@ class _DiagnosticsHero extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '$model • Android $androidRelease',
+            '$model - Android $androidRelease',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.82),
               height: 1.35,
@@ -298,25 +298,25 @@ class _MetricGrid extends StatelessWidget {
         _InfoCard(
           title: 'Battery',
           value:
-              '$batteryPercent% • charging: ${native['batteryCharging'] == true ? 'yes' : 'no'}',
+              '$batteryPercent% - charging: ${native['batteryCharging'] == true ? 'yes' : 'no'}',
           icon: CupertinoIcons.battery_25,
         ),
         _InfoCard(
           title: 'Permissions',
           value:
-              'SMS: $smsPermission • Notifications: $notificationsPermission',
+              'SMS: $smsPermission - Notifications: $notificationsPermission',
           icon: CupertinoIcons.lock_shield,
         ),
         _InfoCard(
           title: 'Background health',
           value:
-              'Exact alarms: ${report.exactAlarmsAllowed ? 'yes' : 'no'} • Battery unrestricted: ${report.batteryUnrestricted ? 'yes' : 'no'}',
+              'Exact alarms: ${report.exactAlarmsAllowed ? 'yes' : 'no'} - Battery unrestricted: ${report.batteryUnrestricted ? 'yes' : 'no'}',
           icon: CupertinoIcons.clock_fill,
         ),
         _InfoCard(
           title: 'Queue and logs',
           value:
-              '${report.unsentReminders} queued • ${report.failedLogs} failed • ${report.blockedLogs} blocked',
+              '${report.unsentReminders} queued - ${report.failedLogs} failed - ${report.blockedLogs} blocked',
           icon: CupertinoIcons.list_bullet,
         ),
       ],
@@ -338,7 +338,7 @@ class _FailureCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${failure['status'] ?? 'unknown'} • ${failure['phoneNumber'] ?? ''}',
+            '${failure['status'] ?? 'unknown'} - ${failure['phoneNumber'] ?? ''}',
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w900,

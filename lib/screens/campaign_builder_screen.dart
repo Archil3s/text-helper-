@@ -326,7 +326,7 @@ class _HeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$recipientCount NZ recipients • ${safetyCheckPassed ? 'safety passed' : 'safety pending'}',
+                  '$recipientCount NZ recipients - ${safetyCheckPassed ? 'safety passed' : 'safety pending'}',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.78),
                     height: 1.3,

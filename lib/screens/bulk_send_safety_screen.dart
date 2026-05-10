@@ -231,12 +231,12 @@ class _MetricGrid extends StatelessWidget {
           icon: CupertinoIcons.person_2_fill,
           title: 'Contacts',
           value:
-              '${report.totalContacts} total • ${report.consentedContacts} consented',
+              '${report.totalContacts} total - ${report.consentedContacts} consented',
         ),
         _InfoCard(
           icon: CupertinoIcons.lab_flask_solid,
           title: 'Test vs live',
-          value: '${report.testContacts} test • ${report.liveContacts} live',
+          value: '${report.testContacts} test - ${report.liveContacts} live',
         ),
         _InfoCard(
           icon: CupertinoIcons.timer,
@@ -248,7 +248,7 @@ class _MetricGrid extends StatelessWidget {
           icon: CupertinoIcons.speedometer,
           title: 'Rate caps',
           value:
-              '${report.maxPerMinute}/minute • ${report.maxPerHour}/hour • ${report.maxPerDay}/day',
+              '${report.maxPerMinute}/minute - ${report.maxPerHour}/hour - ${report.maxPerDay}/day',
         ),
       ],
     );

@@ -179,7 +179,7 @@ class _AppointmentRemindersScreenState
                             (contact) => DropdownMenuItem<NzSmsRecipient>(
                               value: contact,
                               child:
-                                  Text('${contact.name} • ${contact.number}'),
+                                  Text('${contact.name} - ${contact.number}'),
                             ),
                           )
                           .toList(),
@@ -517,7 +517,7 @@ class _HeroCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(28),
       ),
       child: Text(
-        'Appointment reminders\n$dueCount due • $pendingCount pending • $sentCount sent',
+        'Appointment reminders\n$dueCount due - $pendingCount pending - $sentCount sent',
         style: const TextStyle(
           color: Colors.white,
           fontSize: 25,
