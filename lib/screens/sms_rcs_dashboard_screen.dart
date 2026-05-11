@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'auto_reply_rules_screen.dart';
 import 'bulk_sms_send_screen.dart';
 import 'direct_sms_screen.dart';
+import 'profiles_screen.dart';
 import 'rcs_policy_simple_screen.dart';
 import 'send_history_screen.dart';
 import 'send_queue_screen.dart';
