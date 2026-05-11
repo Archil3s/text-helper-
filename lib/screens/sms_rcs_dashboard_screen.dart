@@ -115,12 +115,12 @@ class SmsRcsDashboardScreen extends StatelessWidget {
             const SizedBox(height: 22),
             const _SectionTitle('Core tools'),
             const SizedBox(height: 12),
-            ...actions.take(4).map(
-                  (action) => _ActionCard(
-                    action: action,
-                    onTap: () => _open(context, action.screen),
-                  ),
-                ),
+            ...actions.map(
+              (action) => _ActionCard(
+                action: action,
+                onTap: () => _open(context, action.screen),
+              ),
+            ),
             const SizedBox(height: 12),
             const _SurfaceCard(
               child: Row(
