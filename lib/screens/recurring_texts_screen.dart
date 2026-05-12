@@ -287,13 +287,36 @@ class _RecurringTextsScreenState extends State<RecurringTextsScreen> {
     });
   }
 
+  List<String> _parseUniquePhoneNumbers(String raw) {
+    final uniqueNumbers = <String>[];
+    final seenKeys = <String>{};
+
+    final parts = raw
+        .split(RegExp(r'[\n,;]+'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty);
+
+    for (final part in parts) {
+      final normalizedKey = part.replaceAll(RegExp(r'[^0-9+]'), '');
+
+      if (normalizedKey.isEmpty || seenKeys.contains(normalizedKey)) {
+        continue;
+      }
+
+      seenKeys.add(normalizedKey);
+      uniqueNumbers.add(part);
+    }
+
+    return uniqueNumbers;
+  }
+
   Future<void> _addJob() async {
     final label = _labelController.text.trim();
-    final phoneNumber = _phoneController.text.trim();
+    final phoneNumbers = _parseUniquePhoneNumbers(_phoneController.text);
     final message = _messageController.text.trim();
 
-    if (phoneNumber.isEmpty || message.isEmpty) {
-      _showSnack('Enter a phone number and message.');
+    if (phoneNumbers.isEmpty || message.isEmpty) {
+      _showSnack('Enter at least one phone number and a message.');
       return;
     }
 
@@ -302,20 +325,34 @@ class _RecurringTextsScreenState extends State<RecurringTextsScreen> {
       return;
     }
 
-    final job = _RecurringTextJob(
-      id: 'recurring-${DateTime.now().microsecondsSinceEpoch}',
-      phoneNumber: phoneNumber,
-      message: message,
-      scheduledAt: _scheduledAt,
-      recurrenceRule: _recurrenceRule,
-      enabled: true,
-      label: label.isEmpty ? 'Recurring text' : label,
-    );
+    final baseTime = DateTime.now().microsecondsSinceEpoch;
+    final jobLabel = label.isEmpty ? 'Recurring text' : label;
+
+    final newJobs = <_RecurringTextJob>[];
+
+    for (var index = 0; index < phoneNumbers.length; index += 1) {
+      final phoneNumber = phoneNumbers[index];
+
+      newJobs.add(
+        _RecurringTextJob(
+          id: 'recurring-$baseTime-$index',
+          phoneNumber: phoneNumber,
+          message: message,
+          scheduledAt: _scheduledAt,
+          recurrenceRule: _recurrenceRule,
+          enabled: true,
+          label: phoneNumbers.length == 1
+              ? jobLabel
+              : '$jobLabel ${index + 1} of ${phoneNumbers.length}',
+        ),
+      );
+    }
 
     setState(() {
-      _jobs = [job, ..._jobs]
+      _jobs = [...newJobs, ..._jobs]
         ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
-      _status = 'Recurring text saved.';
+      _status =
+          'Saved ${newJobs.length} recurring text job${newJobs.length == 1 ? '' : 's'}.';
     });
 
     await _saveAndSync();
@@ -598,7 +635,7 @@ class _RecurringTextsScreenState extends State<RecurringTextsScreen> {
                         onPressed: _addJob,
                         icon:
                             const Icon(CupertinoIcons.check_mark_circled_solid),
-                        label: const Text('Save Recurring Text'),
+                        label: const Text('Save Scheduled Texts'),
                         style: FilledButton.styleFrom(
                           minimumSize: const Size.fromHeight(54),
                         ),
@@ -661,7 +698,7 @@ class _HeroCard extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            'Schedule one-time, daily, weekly, or monthly SMS messages using local Android alarms.',
+            'Schedule one-time, daily, weekly, or monthly SMS messages for many unique people.',
             style: TextStyle(
               color: Colors.white70,
               height: 1.35,
