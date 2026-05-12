@@ -1,15 +1,27 @@
 package com.example.text_helper
 
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Telephony
 import android.telephony.SmsManager
+import android.util.Log
 import org.json.JSONArray
 
 class SmsAutoReplyReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        Log.d(TAG, "Receiver invoked with action=${intent.action}")
+
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
+            Log.d(TAG, "Ignored non-SMS action")
+            return
+        }
+
+        if (!hasSmsPermissions(context)) {
+            Log.w(TAG, "Missing SEND_SMS or RECEIVE_SMS permission")
             return
         }
 
@@ -21,6 +33,7 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
         )
 
         if (!masterEnabled) {
+            Log.d(TAG, "Auto Reply master switch is off")
             return
         }
 
@@ -30,19 +43,25 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
         val allowedNumbers = parseAllowedNumbers(allowedRaw)
 
         if (allowedNumbers.isEmpty()) {
+            Log.d(TAG, "No approved sender numbers configured")
             return
         }
 
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
 
         if (messages.isEmpty()) {
+            Log.d(TAG, "No SMS messages found in intent")
             return
         }
 
-        val sender = messages.firstOrNull()?.originatingAddress ?: return
+        val sender = messages.firstOrNull()?.originatingAddress ?: run {
+            Log.d(TAG, "SMS sender was empty")
+            return
+        }
         val senderDigits = normalizeNumber(sender)
 
         if (!isAllowedSender(senderDigits, allowedNumbers)) {
+            Log.d(TAG, "Sender not approved: $senderDigits")
             return
         }
 
@@ -51,10 +70,17 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
         }.lowercase()
 
         if (body.isBlank()) {
+            Log.d(TAG, "Incoming SMS body was blank")
             return
         }
 
-        val rules = JSONArray(rulesRaw)
+        val rules = try {
+            JSONArray(rulesRaw)
+        } catch (error: Exception) {
+            Log.e(TAG, "Could not parse auto-reply rules", error)
+            return
+        }
+
         val cooldownStore = context.getSharedPreferences(
             "text_helper_auto_reply_native",
             Context.MODE_PRIVATE
@@ -81,6 +107,7 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
             val cooldownMillis = cooldownMinutes * 60L * 1000L
 
             if (now - lastSent < cooldownMillis) {
+                Log.d(TAG, "Cooldown active for sender=$senderDigits keyword=$keyword")
                 return
             }
 
@@ -110,11 +137,25 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
                     .edit()
                     .putLong(cooldownKey, now)
                     .apply()
-            } catch (_: Exception) {
+
+                Log.d(TAG, "Auto reply sent to sender=$senderDigits keyword=$keyword")
+            } catch (error: Exception) {
+                Log.e(TAG, "Auto reply failed", error)
                 return
             }
 
             return
+        }
+
+        Log.d(TAG, "No enabled keyword rule matched incoming SMS")
+    }
+
+    private fun hasSmsPermissions(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            context.checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED &&
+                context.checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
         }
     }
 
@@ -130,7 +171,9 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
                     numbers.add(value)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (error: Exception) {
+            Log.e(TAG, "Could not parse approved sender numbers", error)
+        }
 
         return numbers
     }
@@ -148,5 +191,9 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
             senderDigits.endsWith(allowed.takeLast(8)) ||
                 allowed.endsWith(senderDigits.takeLast(8))
         }
+    }
+
+    companion object {
+        private const val TAG = "TextHelperAutoReply"
     }
 }
