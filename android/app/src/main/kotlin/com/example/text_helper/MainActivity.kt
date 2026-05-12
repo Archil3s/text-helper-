@@ -222,11 +222,8 @@ class MainActivity : FlutterActivity() {
             batteryStatus == BatteryManager.BATTERY_STATUS_CHARGING ||
                 batteryStatus == BatteryManager.BATTERY_STATUS_FULL
 
-        val smsPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
+        val sendSmsPermissionGranted = hasSendSmsPermission()
+        val receiveSmsPermissionGranted = hasReceiveSmsPermission()
 
         val notificationsPermissionGranted = if (Build.VERSION.SDK_INT >= 33) {
             checkSelfPermission("android.permission.POST_NOTIFICATIONS") ==
@@ -244,7 +241,9 @@ class MainActivity : FlutterActivity() {
             "device" to Build.DEVICE,
             "batteryPercent" to batteryPercent,
             "batteryCharging" to isCharging,
-            "smsPermissionGranted" to smsPermissionGranted,
+            "smsPermissionGranted" to (sendSmsPermissionGranted && receiveSmsPermissionGranted),
+            "sendSmsPermissionGranted" to sendSmsPermissionGranted,
+            "receiveSmsPermissionGranted" to receiveSmsPermissionGranted,
             "notificationsPermissionGranted" to notificationsPermissionGranted
         )
     }
@@ -257,15 +256,33 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun hasReceiveSmsPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
+
+    private fun hasAutoReplySmsPermissions(): Boolean {
+        return hasSendSmsPermission() && hasReceiveSmsPermission()
+    }
+
     private fun requestSmsPermissionOnly(result: MethodChannel.Result) {
-        if (hasSendSmsPermission()) {
+        if (hasAutoReplySmsPermissions()) {
             result.success(true)
             return
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             pendingPermissionResult = result
-            requestPermissions(arrayOf(Manifest.permission.SEND_SMS), 9002)
+            requestPermissions(
+                arrayOf(
+                    Manifest.permission.SEND_SMS,
+                    Manifest.permission.RECEIVE_SMS
+                ),
+                9002
+            )
         } else {
             result.success(false)
         }
@@ -742,7 +759,7 @@ class MainActivity : FlutterActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         val granted = grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED
+            grantResults.all { it == PackageManager.PERMISSION_GRANTED }
 
         if (requestCode == 9003) {
             pendingNotificationPermissionResult?.success(granted)
@@ -781,4 +798,3 @@ class MainActivity : FlutterActivity() {
         }
     }
 }
-
