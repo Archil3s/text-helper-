@@ -16,8 +16,7 @@ class DirectSmsScreen extends StatefulWidget {
   State<DirectSmsScreen> createState() => _DirectSmsScreenState();
 }
 
-class _DirectSmsScreenState extends State<DirectSmsScreen>
-    with SingleTickerProviderStateMixin {
+class _DirectSmsScreenState extends State<DirectSmsScreen> {
   final NativeSmsService _smsService = NativeSmsService();
   final NzRecipientStore _store = NzRecipientStore();
   final SendLogStore _sendLogStore = SendLogStore();
@@ -64,6 +63,14 @@ class _DirectSmsScreenState extends State<DirectSmsScreen>
     return !_isSending &&
         _selectedContact != null &&
         _messageController.text.trim().isNotEmpty;
+  }
+
+  void _openScheduler() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const RecurringTextsScreen(),
+      ),
+    );
   }
 
   Future<void> _recordSendLog({
@@ -174,94 +181,204 @@ class _DirectSmsScreenState extends State<DirectSmsScreen>
   Widget build(BuildContext context) {
     final contact = _selectedContact;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
-      appBar: AppBar(
-        title: const Text('Direct Send'),
-        centerTitle: false,
-        actions: [
-          IconButton(
-            onPressed: _loadContacts,
-            icon: const Icon(CupertinoIcons.refresh),
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                _HeroCard(contact: contact),
-                const SizedBox(height: 20),
-                const _SectionTitle('Selected number'),
-                const SizedBox(height: 12),
-                if (_contacts.isEmpty)
-                  const _SurfaceCard(
-                    child: Text(
-                      'No approved contacts found. Add your test number in Contacts first.',
-                      style: TextStyle(
-                        color: CupertinoColors.secondaryLabel,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  )
-                else
-                  ..._contacts.map(
-                    (item) => _ContactCard(
-                      contact: item,
-                      selected: item.id == contact?.id,
-                      onTap: () {
-                        setState(() => _selectedContact = item);
-                      },
-                    ),
-                  ),
-                const SizedBox(height: 20),
-                const _SectionTitle('Message'),
-                const SizedBox(height: 12),
-                _SurfaceCard(
-                  child: TextField(
-                    controller: _messageController,
-                    maxLines: 5,
-                    decoration: InputDecoration(
-                      hintText: 'Write message...',
-                      filled: true,
-                      fillColor: const Color(0xFFF9FAFB),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                FilledButton.icon(
-                  onPressed: _canSend ? _sendNow : null,
-                  icon: _isSending
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(CupertinoIcons.paperplane_fill),
-                  label: Text(_isSending ? 'Sending...' : 'SEND NOW'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(62),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const _SafetyNote(),
-                const SizedBox(height: 12),
-                const _StatusNote(),
-              ],
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF2F2F7),
+        appBar: AppBar(
+          title: const Text('Send SMS'),
+          centerTitle: false,
+          actions: [
+            IconButton(
+              onPressed: _loadContacts,
+              icon: const Icon(CupertinoIcons.refresh),
             ),
+          ],
+          bottom: const TabBar(
+            labelColor: Color(0xFF0A84FF),
+            unselectedLabelColor: CupertinoColors.secondaryLabel,
+            indicatorColor: Color(0xFF0A84FF),
+            tabs: [
+              Tab(text: 'Send Now'),
+              Tab(text: 'Schedule'),
+            ],
+          ),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                children: [
+                  _SendNowTab(
+                    contact: contact,
+                    contacts: _contacts,
+                    messageController: _messageController,
+                    isSending: _isSending,
+                    canSend: _canSend,
+                    onSelectContact: (item) {
+                      setState(() => _selectedContact = item);
+                    },
+                    onSendNow: _sendNow,
+                  ),
+                  _ScheduleTab(onOpenScheduler: _openScheduler),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _SendNowTab extends StatelessWidget {
+  const _SendNowTab({
+    required this.contact,
+    required this.contacts,
+    required this.messageController,
+    required this.isSending,
+    required this.canSend,
+    required this.onSelectContact,
+    required this.onSendNow,
+  });
+
+  final NzSmsRecipient? contact;
+  final List<NzSmsRecipient> contacts;
+  final TextEditingController messageController;
+  final bool isSending;
+  final bool canSend;
+  final ValueChanged<NzSmsRecipient> onSelectContact;
+  final VoidCallback onSendNow;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        _HeroCard(contact: contact),
+        const SizedBox(height: 20),
+        const _SectionTitle('Selected number'),
+        const SizedBox(height: 12),
+        if (contacts.isEmpty)
+          const _SurfaceCard(
+            child: Text(
+              'No approved contacts found. Add your test number in Contacts first.',
+              style: TextStyle(
+                color: CupertinoColors.secondaryLabel,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          )
+        else
+          ...contacts.map(
+            (item) => _ContactCard(
+              contact: item,
+              selected: item.id == contact?.id,
+              onTap: () => onSelectContact(item),
+            ),
+          ),
+        const SizedBox(height: 20),
+        const _SectionTitle('Message'),
+        const SizedBox(height: 12),
+        _SurfaceCard(
+          child: TextField(
+            controller: messageController,
+            maxLines: 5,
+            decoration: InputDecoration(
+              hintText: 'Write message...',
+              filled: true,
+              fillColor: const Color(0xFFF9FAFB),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        FilledButton.icon(
+          onPressed: canSend ? onSendNow : null,
+          icon: isSending
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(CupertinoIcons.paperplane_fill),
+          label: Text(isSending ? 'Sending...' : 'SEND NOW'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(62),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        const _SafetyNote(),
+        const SizedBox(height: 12),
+        const _StatusNote(),
+      ],
+    );
+  }
+}
+
+class _ScheduleTab extends StatelessWidget {
+  const _ScheduleTab({required this.onOpenScheduler});
+
+  final VoidCallback onOpenScheduler;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const _ScheduleHeroCard(),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed: onOpenScheduler,
+          icon: const Icon(CupertinoIcons.calendar_badge_plus),
+          label: const Text('Open Scheduler'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(62),
+            backgroundColor: const Color(0xFF16A34A),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: onOpenScheduler,
+          icon: const Icon(CupertinoIcons.repeat),
+          label: const Text('Manage Recurring Texts'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(54),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        const _SurfaceCard(
+          child: Text(
+            'Use Schedule to create one-time, daily, weekly, or monthly SMS jobs. The scheduler opens a dedicated screen for date, time, repeat, message, and phone number.',
+            style: TextStyle(
+              color: CupertinoColors.secondaryLabel,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
