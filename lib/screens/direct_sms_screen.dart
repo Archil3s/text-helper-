@@ -16,7 +16,8 @@ class DirectSmsScreen extends StatefulWidget {
   State<DirectSmsScreen> createState() => _DirectSmsScreenState();
 }
 
-class _DirectSmsScreenState extends State<DirectSmsScreen> {
+class _DirectSmsScreenState extends State<DirectSmsScreen>
+    with SingleTickerProviderStateMixin {
   final NativeSmsService _smsService = NativeSmsService();
   final NzRecipientStore _store = NzRecipientStore();
   final SendLogStore _sendLogStore = SendLogStore();
@@ -261,6 +262,55 @@ class _DirectSmsScreenState extends State<DirectSmsScreen> {
                 const _StatusNote(),
               ],
             ),
+    );
+  }
+}
+
+class _ScheduleHeroCard extends StatelessWidget {
+  const _ScheduleHeroCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            CupertinoIcons.calendar_badge_plus,
+            color: Colors.white,
+            size: 36,
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Schedule Texts',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Create one-time or repeating SMS messages.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
