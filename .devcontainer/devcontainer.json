@@ -15,8 +15,9 @@
   "portsAttributes": {
     "3000": {
       "label": "Flutter Web Preview",
-      "onAutoForward": "openPreview"
+      "onAutoForward": "openPreview",
+      "visibility": "public"
     }
   },
-  "postCreateCommand": "flutter doctor"
+  "postCreateCommand": "chmod +x .devcontainer/start_web.sh && .devcontainer/start_web.sh"
 }
