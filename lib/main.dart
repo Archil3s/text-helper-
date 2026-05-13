@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import 'screens/sms_rcs_dashboard_screen.dart';
+import 'screens/contact_scheduler_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +28,7 @@ class TextHelperApp extends StatelessWidget {
           foregroundColor: CupertinoColors.label,
         ),
       ),
-      home: const SmsRcsDashboardScreen(),
+      home: const ContactSchedulerScreen(),
     );
   }
 }
