@@ -358,7 +358,7 @@ class _WhatsAppRecurringHandoffScreenState
                         )
                       else
                         DropdownButtonFormField<NzSmsRecipient>(
-                          value: _selectedContact,
+                          initialValue: _selectedContact,
                           decoration: const InputDecoration(
                             labelText: 'Approved contact',
                           ),
@@ -379,7 +379,7 @@ class _WhatsAppRecurringHandoffScreenState
                         ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<WhatsAppRepeatRule>(
-                        value: _repeatRule,
+                        initialValue: _repeatRule,
                         decoration: const InputDecoration(
                           labelText: 'Repeat',
                         ),

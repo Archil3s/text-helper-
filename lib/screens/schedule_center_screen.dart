@@ -553,6 +553,10 @@ class _ScheduleCenterScreenState extends State<ScheduleCenterScreen> {
                 return;
               }
 
+              if (!context.mounted) {
+                return;
+              }
+
               setSheetState(() => selectedDate = picked);
             }
 
@@ -563,6 +567,10 @@ class _ScheduleCenterScreenState extends State<ScheduleCenterScreen> {
               );
 
               if (picked == null) {
+                return;
+              }
+
+              if (!context.mounted) {
                 return;
               }
 
@@ -602,7 +610,7 @@ class _ScheduleCenterScreenState extends State<ScheduleCenterScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: selectedRecipientId,
+                      initialValue: selectedRecipientId,
                       decoration: _inputDecoration('Contact'),
                       items: _recipients.map((recipient) {
                         final suffix =
@@ -619,7 +627,7 @@ class _ScheduleCenterScreenState extends State<ScheduleCenterScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<ScheduleType>(
-                      value: selectedType,
+                      initialValue: selectedType,
                       decoration: _inputDecoration('Schedule type'),
                       items: ScheduleType.values.map((type) {
                         return DropdownMenuItem<ScheduleType>(
@@ -929,7 +937,7 @@ class _HeroCard extends StatelessWidget {
       child: Row(
         children: [
           const Icon(
-            CupertinoIcons.calendar_badge_clock,
+            CupertinoIcons.calendar_badge_plus,
             color: Colors.white,
             size: 38,
           ),

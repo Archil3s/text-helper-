@@ -359,6 +359,10 @@ class _ContactGroupsScreenState extends State<ContactGroupsScreen> {
                 return;
               }
 
+              if (!context.mounted) {
+                return;
+              }
+
               setSheetState(() {
                 scheduledAt = DateTime(
                   picked.year,
@@ -377,6 +381,10 @@ class _ContactGroupsScreenState extends State<ContactGroupsScreen> {
               );
 
               if (picked == null) {
+                return;
+              }
+
+              if (!context.mounted) {
                 return;
               }
 

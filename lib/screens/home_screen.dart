@@ -49,7 +49,7 @@ class HomeScreen extends StatelessWidget {
         screen: DirectSmsScreen(),
       ),
       const _HomeItem(
-        icon: CupertinoIcons.calendar_badge_clock,
+        icon: CupertinoIcons.calendar_badge_plus,
         title: 'Schedule Center',
         subtitle: 'Create, review, and track due SMS reminders.',
         screen: ScheduleCenterScreen(),

@@ -289,7 +289,7 @@ class _ChannelTestLabScreenState extends State<ChannelTestLabScreen> {
                         )
                       else
                         DropdownButtonFormField<NzSmsRecipient>(
-                          value: contact,
+                          initialValue: contact,
                           decoration: const InputDecoration(
                             labelText: 'Approved contact',
                           ),

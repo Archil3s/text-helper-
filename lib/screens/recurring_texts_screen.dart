@@ -576,7 +576,7 @@ class _RecurringTextsScreenState extends State<RecurringTextsScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _recurrenceRule,
+                        initialValue: _recurrenceRule,
                         decoration: const InputDecoration(
                           labelText: 'Repeat',
                         ),

@@ -645,7 +645,7 @@ class _ScheduleTextSheetState extends State<_ScheduleTextSheet> {
               ),
               const SizedBox(height: 6),
               Text(
-                '${widget.contact.name} • ${widget.contact.phone}',
+                '${widget.contact.name} â€¢ ${widget.contact.phone}',
                 style: const TextStyle(
                   color: CupertinoColors.secondaryLabel,
                   fontWeight: FontWeight.w700,
@@ -1103,7 +1103,7 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -1124,7 +1124,7 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.14),
+        color: Colors.white.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -1146,7 +1146,7 @@ class _Chip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A84FF).withOpacity(0.10),
+        color: const Color(0xFF0A84FF).withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -1169,7 +1169,7 @@ class _SheetHandle extends StatelessWidget {
         height: 5,
         margin: const EdgeInsets.only(bottom: 18),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.18),
+          color: Colors.black.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(999),
         ),
       ),

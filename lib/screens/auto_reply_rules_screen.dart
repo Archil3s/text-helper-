@@ -542,7 +542,7 @@ class _AutoReplyRulesScreenState extends State<AutoReplyRulesScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<int>(
-                        value: _cooldownMinutes,
+                        initialValue: _cooldownMinutes,
                         decoration: const InputDecoration(
                           labelText: 'Do not repeat for',
                         ),

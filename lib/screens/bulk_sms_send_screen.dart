@@ -256,7 +256,7 @@ class _BulkSmsSendScreenState extends State<BulkSmsSendScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<int>(
-                        value: _delaySeconds,
+                        initialValue: _delaySeconds,
                         decoration: const InputDecoration(
                           labelText: 'Delay between messages',
                         ),
