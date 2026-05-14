@@ -336,6 +336,7 @@ class _WhatsAppFeatureScreenState extends State<WhatsAppFeatureScreen> {
       client.close(force: true);
     }
   }
+
   Map<String, dynamic>? _decodeMap(String body) {
     try {
       final decoded = jsonDecode(body);
