@@ -43,3 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+# Local generated backups - keep outside analyzer/git
+*_backup_*/
+bare_essentials_backup_*/
+cleanup_backups_*/
+cleanup_final_*/
+contact_book_backup_*/
+rebuild_visible_features_backup_*/
+*.bak
+*.diff
