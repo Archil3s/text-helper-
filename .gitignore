@@ -52,3 +52,4 @@ contact_book_backup_*/
 rebuild_visible_features_backup_*/
 *.bak
 *.diff
+text-helper-local-backups-*/
