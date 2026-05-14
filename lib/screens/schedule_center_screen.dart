@@ -3,394 +3,7 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../models/nz_sms_recipient.dart';
-import '../services/nz_recipient_store.dart';
-
-enum ScheduleType {
-  oneTime,
-  daily,
-  weekly,
-  monthly,
-  customDate,
-  customTime,
-}
-
-enum ReminderStatus {
-  due,
-  upcoming,
-  sent,
-  blocked,
-}
-
-class ScheduledReminder {
-  const ScheduledReminder({
-    required this.id,
-    required this.title,
-    required this.message,
-    required this.recipientId,
-    required this.recipientName,
-    required this.recipientNumber,
-    required this.scheduleType,
-    required this.startAt,
-    required this.createdAt,
-    this.lastSentAt,
-  });
-
-  final String id;
-  final String title;
-  final String message;
-  final String recipientId;
-  final String recipientName;
-  final String recipientNumber;
-  final ScheduleType scheduleType;
-  final DateTime startAt;
-  final DateTime createdAt;
-  final DateTime? lastSentAt;
-
-  bool get isRecurring {
-    return scheduleType == ScheduleType.daily ||
-        scheduleType == ScheduleType.weekly ||
-        scheduleType == ScheduleType.monthly ||
-        scheduleType == ScheduleType.customTime;
-  }
-
-  String get scheduleLabel {
-    switch (scheduleType) {
-      case ScheduleType.oneTime:
-        return 'One time';
-      case ScheduleType.daily:
-        return 'Daily';
-      case ScheduleType.weekly:
-        return 'Weekly';
-      case ScheduleType.monthly:
-        return 'Monthly';
-      case ScheduleType.customDate:
-        return 'Custom date';
-      case ScheduleType.customTime:
-        return 'Custom time';
-    }
-  }
-
-  DateTime? latestDueOccurrence(DateTime now) {
-    if (startAt.isAfter(now)) {
-      return null;
-    }
-
-    switch (scheduleType) {
-      case ScheduleType.oneTime:
-      case ScheduleType.customDate:
-        return startAt;
-      case ScheduleType.daily:
-      case ScheduleType.customTime:
-        var candidate = DateTime(
-          now.year,
-          now.month,
-          now.day,
-          startAt.hour,
-          startAt.minute,
-        );
-
-        if (candidate.isAfter(now)) {
-          candidate = candidate.subtract(const Duration(days: 1));
-        }
-
-        if (candidate.isBefore(startAt)) {
-          return null;
-        }
-
-        return candidate;
-      case ScheduleType.weekly:
-        final days = now.difference(startAt).inDays;
-        final weeks = days ~/ 7;
-        var candidate = startAt.add(Duration(days: weeks * 7));
-
-        while (candidate.isAfter(now)) {
-          candidate = candidate.subtract(const Duration(days: 7));
-        }
-
-        if (candidate.isBefore(startAt)) {
-          return null;
-        }
-
-        return candidate;
-      case ScheduleType.monthly:
-        var candidate = startAt;
-
-        while (_addMonths(candidate, 1).isBefore(now) ||
-            _sameMinute(_addMonths(candidate, 1), now)) {
-          candidate = _addMonths(candidate, 1);
-        }
-
-        return candidate;
-    }
-  }
-
-  DateTime? nextOccurrenceAfter(DateTime after) {
-    if (startAt.isAfter(after)) {
-      return startAt;
-    }
-
-    switch (scheduleType) {
-      case ScheduleType.oneTime:
-      case ScheduleType.customDate:
-        return null;
-      case ScheduleType.daily:
-      case ScheduleType.customTime:
-        var candidate = DateTime(
-          after.year,
-          after.month,
-          after.day,
-          startAt.hour,
-          startAt.minute,
-        );
-
-        while (!candidate.isAfter(after)) {
-          candidate = candidate.add(const Duration(days: 1));
-        }
-
-        return candidate;
-      case ScheduleType.weekly:
-        final days = after.difference(startAt).inDays;
-        final weeks = days ~/ 7;
-        var candidate = startAt.add(Duration(days: weeks * 7));
-
-        while (!candidate.isAfter(after)) {
-          candidate = candidate.add(const Duration(days: 7));
-        }
-
-        return candidate;
-      case ScheduleType.monthly:
-        var candidate = startAt;
-
-        while (!candidate.isAfter(after)) {
-          candidate = _addMonths(candidate, 1);
-        }
-
-        return candidate;
-    }
-  }
-
-  ReminderStatus status({
-    required bool contactExists,
-    required bool contactConsented,
-    DateTime? now,
-  }) {
-    final current = now ?? DateTime.now();
-
-    if (!contactExists || !contactConsented) {
-      return ReminderStatus.blocked;
-    }
-
-    final latest = latestDueOccurrence(current);
-
-    if (latest != null) {
-      if (lastSentAt == null || lastSentAt!.isBefore(latest)) {
-        return ReminderStatus.due;
-      }
-
-      if (!isRecurring) {
-        return ReminderStatus.sent;
-      }
-    }
-
-    final next = nextOccurrenceAfter(current);
-
-    if (next == null) {
-      return ReminderStatus.sent;
-    }
-
-    return ReminderStatus.upcoming;
-  }
-
-  DateTime? displayDate(DateTime now) {
-    final latest = latestDueOccurrence(now);
-
-    if (latest != null &&
-        (lastSentAt == null || lastSentAt!.isBefore(latest))) {
-      return latest;
-    }
-
-    return nextOccurrenceAfter(now) ?? latest;
-  }
-
-  ScheduledReminder copyWith({
-    String? id,
-    String? title,
-    String? message,
-    String? recipientId,
-    String? recipientName,
-    String? recipientNumber,
-    ScheduleType? scheduleType,
-    DateTime? startAt,
-    DateTime? createdAt,
-    DateTime? lastSentAt,
-  }) {
-    return ScheduledReminder(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      message: message ?? this.message,
-      recipientId: recipientId ?? this.recipientId,
-      recipientName: recipientName ?? this.recipientName,
-      recipientNumber: recipientNumber ?? this.recipientNumber,
-      scheduleType: scheduleType ?? this.scheduleType,
-      startAt: startAt ?? this.startAt,
-      createdAt: createdAt ?? this.createdAt,
-      lastSentAt: lastSentAt ?? this.lastSentAt,
-    );
-  }
-
-  factory ScheduledReminder.fromJson(Map<String, dynamic> json) {
-    return ScheduledReminder(
-      id: json['id'] as String? ?? '',
-      title: json['title'] as String? ?? 'Untitled reminder',
-      message: json['message'] as String? ?? '',
-      recipientId: json['recipientId'] as String? ?? '',
-      recipientName: json['recipientName'] as String? ?? '',
-      recipientNumber: json['recipientNumber'] as String? ?? '',
-      scheduleType: _parseScheduleType(json['scheduleType'] as String?),
-      startAt:
-          DateTime.tryParse(json['startAt'] as String? ?? '') ?? DateTime.now(),
-      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
-          DateTime.now(),
-      lastSentAt: DateTime.tryParse(json['lastSentAt'] as String? ?? ''),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'message': message,
-      'recipientId': recipientId,
-      'recipientName': recipientName,
-      'recipientNumber': recipientNumber,
-      'scheduleType': scheduleType.name,
-      'startAt': startAt.toIso8601String(),
-      'createdAt': createdAt.toIso8601String(),
-      'lastSentAt': lastSentAt?.toIso8601String(),
-    };
-  }
-
-  static ScheduleType _parseScheduleType(String? value) {
-    for (final type in ScheduleType.values) {
-      if (type.name == value) {
-        return type;
-      }
-    }
-
-    return ScheduleType.oneTime;
-  }
-
-  static DateTime _addMonths(DateTime value, int months) {
-    final targetMonth = value.month + months;
-    final targetYear = value.year + ((targetMonth - 1) ~/ 12);
-    final normalizedMonth = ((targetMonth - 1) % 12) + 1;
-    final maxDay = DateTime(targetYear, normalizedMonth + 1, 0).day;
-    final day = value.day > maxDay ? maxDay : value.day;
-
-    return DateTime(
-      targetYear,
-      normalizedMonth,
-      day,
-      value.hour,
-      value.minute,
-    );
-  }
-
-  static bool _sameMinute(DateTime left, DateTime right) {
-    return left.year == right.year &&
-        left.month == right.month &&
-        left.day == right.day &&
-        left.hour == right.hour &&
-        left.minute == right.minute;
-  }
-}
-
-class ScheduledReminderStore {
-  static const String _key = 'text_helper_scheduled_reminders';
-
-  Future<List<ScheduledReminder>> loadReminders() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final rawValue = prefs.getString(_key);
-
-      if (rawValue == null || rawValue.isEmpty) {
-        return <ScheduledReminder>[];
-      }
-
-      final decoded = jsonDecode(rawValue);
-
-      if (decoded is! List) {
-        return <ScheduledReminder>[];
-      }
-
-      final reminders = decoded
-          .whereType<Map>()
-          .map(
-            (item) =>
-                ScheduledReminder.fromJson(Map<String, dynamic>.from(item)),
-          )
-          .where((item) => item.id.isNotEmpty)
-          .toList();
-
-      reminders.sort((a, b) => a.startAt.compareTo(b.startAt));
-      return reminders;
-    } catch (_) {
-      return <ScheduledReminder>[];
-    }
-  }
-
-  Future<void> saveReminders(List<ScheduledReminder> reminders) async {
-    final sorted = [...reminders]
-      ..sort((a, b) => a.startAt.compareTo(b.startAt));
-
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(
-      _key,
-      jsonEncode(sorted.map((item) => item.toJson()).toList()),
-    );
-  }
-
-  Future<void> addReminder(ScheduledReminder reminder) async {
-    final reminders = await loadReminders();
-    await saveReminders([reminder, ...reminders]);
-  }
-
-  Future<void> updateReminder(ScheduledReminder updated) async {
-    final reminders = await loadReminders();
-
-    await saveReminders(
-      reminders
-          .map((reminder) => reminder.id == updated.id ? updated : reminder)
-          .toList(),
-    );
-  }
-
-  Future<void> deleteReminder(String id) async {
-    final reminders = await loadReminders();
-
-    await saveReminders(
-      reminders.where((reminder) => reminder.id != id).toList(),
-    );
-  }
-
-  Future<void> markSent(String id) async {
-    final reminders = await loadReminders();
-    final now = DateTime.now();
-
-    await saveReminders(
-      reminders.map((reminder) {
-        if (reminder.id != id) {
-          return reminder;
-        }
-
-        return reminder.copyWith(lastSentAt: now);
-      }).toList(),
-    );
-  }
-}
+import 'package:url_launcher/url_launcher.dart';
 
 class ScheduleCenterScreen extends StatefulWidget {
   const ScheduleCenterScreen({super.key});
@@ -400,368 +13,208 @@ class ScheduleCenterScreen extends StatefulWidget {
 }
 
 class _ScheduleCenterScreenState extends State<ScheduleCenterScreen> {
-  final ScheduledReminderStore _scheduleStore = ScheduledReminderStore();
-  final NzRecipientStore _recipientStore = NzRecipientStore();
+  static const _storageKey = 'schedule_center_items_v2';
 
-  List<ScheduledReminder> _reminders = <ScheduledReminder>[];
-  List<NzSmsRecipient> _recipients = <NzSmsRecipient>[];
-  bool _isLoading = true;
-  String _filter = 'All';
+  final _searchController = TextEditingController();
+  final List<ScheduleItem> _items = [];
+
+  bool _loading = true;
+  String _query = '';
+  ScheduleFilter _filter = ScheduleFilter.due;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _searchController.addListener(() {
+      setState(() => _query = _searchController.text.trim().toLowerCase());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
-    final reminders = await _scheduleStore.loadReminders();
-    final recipients = await _recipientStore.loadRecipients();
+    final prefs = await SharedPreferences.getInstance();
+    final rawItems = prefs.getStringList(_storageKey) ?? const <String>[];
+    final loaded = <ScheduleItem>[];
 
-    if (!mounted) {
-      return;
+    for (final raw in rawItems) {
+      try {
+        loaded.add(
+            ScheduleItem.fromJson(jsonDecode(raw) as Map<String, dynamic>));
+      } catch (_) {
+        // Skip broken local records rather than blocking the screen.
+      }
     }
 
+    loaded.sort(_sortScheduleItems);
+
+    if (!mounted) return;
     setState(() {
-      _reminders = reminders;
-      _recipients = recipients;
-      _isLoading = false;
+      _items
+        ..clear()
+        ..addAll(loaded);
+      _loading = false;
     });
   }
 
-  NzSmsRecipient? _recipientFor(ScheduledReminder reminder) {
-    for (final recipient in _recipients) {
-      if (recipient.id == reminder.recipientId) {
-        return recipient;
-      }
-    }
-
-    return null;
-  }
-
-  NzSmsRecipient? _recipientById(String? id) {
-    if (id == null) {
-      return null;
-    }
-
-    for (final recipient in _recipients) {
-      if (recipient.id == id) {
-        return recipient;
-      }
-    }
-
-    return null;
-  }
-
-  ReminderStatus _statusFor(ScheduledReminder reminder) {
-    final recipient = _recipientFor(reminder);
-
-    return reminder.status(
-      contactExists: recipient != null,
-      contactConsented: recipient?.consented ?? false,
+  Future<void> _save() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _storageKey,
+      _items.map((item) => jsonEncode(item.toJson())).toList(),
     );
   }
 
-  List<ScheduledReminder> get _visibleReminders {
-    final result = _reminders.where((reminder) {
-      if (_filter == 'All') {
-        return true;
-      }
+  List<ScheduleItem> get _visibleItems {
+    final now = DateTime.now();
 
-      return _statusLabel(_statusFor(reminder)) == _filter;
+    final filtered = _items.where((item) {
+      final matchesQuery = _query.isEmpty ||
+          [
+            item.recipientName,
+            item.phone,
+            item.message,
+            item.label,
+            item.priority.name,
+            item.status.name,
+          ].join(' ').toLowerCase().contains(_query);
+
+      if (!matchesQuery) return false;
+
+      return switch (_filter) {
+        ScheduleFilter.due => item.status == ScheduleStatus.scheduled &&
+            !item.scheduledAt.isAfter(now),
+        ScheduleFilter.upcoming => item.status == ScheduleStatus.scheduled &&
+            item.scheduledAt.isAfter(now),
+        ScheduleFilter.sent => item.status == ScheduleStatus.sent,
+        ScheduleFilter.cancelled => item.status == ScheduleStatus.cancelled,
+        ScheduleFilter.all => true,
+      };
     }).toList();
 
-    result.sort((a, b) {
-      final now = DateTime.now();
-      final left = a.displayDate(now) ?? a.startAt;
-      final right = b.displayDate(now) ?? b.startAt;
-      return left.compareTo(right);
-    });
-
-    return result;
+    filtered.sort(_sortScheduleItems);
+    return filtered;
   }
 
   int get _dueCount {
-    return _reminders
-        .where((reminder) => _statusFor(reminder) == ReminderStatus.due)
+    final now = DateTime.now();
+    return _items
+        .where((item) =>
+            item.status == ScheduleStatus.scheduled &&
+            !item.scheduledAt.isAfter(now))
         .length;
   }
 
   int get _upcomingCount {
-    return _reminders
-        .where((reminder) => _statusFor(reminder) == ReminderStatus.upcoming)
+    final now = DateTime.now();
+    return _items
+        .where((item) =>
+            item.status == ScheduleStatus.scheduled &&
+            item.scheduledAt.isAfter(now))
         .length;
   }
 
-  int get _blockedCount {
-    return _reminders
-        .where((reminder) => _statusFor(reminder) == ReminderStatus.blocked)
-        .length;
-  }
+  int get _sentCount =>
+      _items.where((item) => item.status == ScheduleStatus.sent).length;
 
-  Future<void> _addReminder() async {
-    if (_recipients.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Add a contact before creating a schedule.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
+  int get _cancelledCount =>
+      _items.where((item) => item.status == ScheduleStatus.cancelled).length;
 
-    await _showEditor();
-  }
-
-  Future<void> _editReminder(ScheduledReminder reminder) async {
-    await _showEditor(existing: reminder);
-  }
-
-  Future<void> _showEditor({ScheduledReminder? existing}) async {
-    final titleController = TextEditingController(
-      text: existing?.title ?? 'Appointment reminder',
-    );
-    final messageController = TextEditingController(
-      text: existing?.message ?? '',
-    );
-
-    var selectedRecipientId = existing?.recipientId;
-    selectedRecipientId ??=
-        _recipients.isNotEmpty ? _recipients.first.id : null;
-
-    var selectedType = existing?.scheduleType ?? ScheduleType.oneTime;
-    var selectedDate = existing?.startAt ?? DateTime.now();
-    var selectedTime = TimeOfDay.fromDateTime(
-      existing?.startAt ?? DateTime.now(),
-    );
-
-    final saved = await showModalBottomSheet<bool>(
+  Future<void> _upsert({ScheduleItem? existing}) async {
+    final result = await showModalBottomSheet<ScheduleItem>(
       context: context,
       isScrollControlled: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            Future<void> pickDate() async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: selectedDate,
-                firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                lastDate: DateTime.now().add(const Duration(days: 3650)),
-              );
-
-              if (picked == null) {
-                return;
-              }
-
-              if (!context.mounted) {
-                return;
-              }
-
-              setSheetState(() => selectedDate = picked);
-            }
-
-            Future<void> pickTime() async {
-              final picked = await showTimePicker(
-                context: context,
-                initialTime: selectedTime,
-              );
-
-              if (picked == null) {
-                return;
-              }
-
-              if (!context.mounted) {
-                return;
-              }
-
-              setSheetState(() => selectedTime = picked);
-            }
-
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  20,
-                  20,
-                  MediaQuery.of(context).viewInsets.bottom + 20,
-                ),
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    Text(
-                      existing == null ? 'New schedule' : 'Edit schedule',
-                      style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _EditorField(
-                      controller: titleController,
-                      label: 'Title',
-                      hint: 'Example: Appointment reminder',
-                    ),
-                    const SizedBox(height: 12),
-                    _EditorField(
-                      controller: messageController,
-                      label: 'Message',
-                      hint: 'Type the SMS text here',
-                      maxLines: 4,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedRecipientId,
-                      decoration: _inputDecoration('Contact'),
-                      items: _recipients.map((recipient) {
-                        final suffix =
-                            recipient.consented ? 'Approved' : 'Blocked';
-
-                        return DropdownMenuItem<String>(
-                          value: recipient.id,
-                          child: Text('${recipient.name} - $suffix'),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setSheetState(() => selectedRecipientId = value);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<ScheduleType>(
-                      initialValue: selectedType,
-                      decoration: _inputDecoration('Schedule type'),
-                      items: ScheduleType.values.map((type) {
-                        return DropdownMenuItem<ScheduleType>(
-                          value: type,
-                          child: Text(_typeLabel(type)),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value == null) {
-                          return;
-                        }
-
-                        setSheetState(() => selectedType = value);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    _PickerTile(
-                      icon: CupertinoIcons.calendar,
-                      title: 'Date',
-                      value: _formatDate(selectedDate),
-                      onTap: pickDate,
-                    ),
-                    const SizedBox(height: 12),
-                    _PickerTile(
-                      icon: CupertinoIcons.clock,
-                      title: 'Time',
-                      value: selectedTime.format(context),
-                      onTap: pickTime,
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      icon: const Icon(CupertinoIcons.check_mark),
-                      label: const Text('Save schedule'),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(54),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      useSafeArea: true,
+      builder: (context) => _ScheduleEditorSheet(existing: existing),
     );
 
-    if (saved != true) {
-      return;
-    }
+    if (result == null || !mounted) return;
 
-    final recipient = _recipientById(selectedRecipientId);
+    setState(() {
+      final index = _items.indexWhere((item) => item.id == result.id);
+      if (index == -1) {
+        _items.add(result);
+      } else {
+        _items[index] = result;
+      }
+      _items.sort(_sortScheduleItems);
+    });
 
-    if (recipient == null) {
-      return;
-    }
+    await _save();
+  }
 
-    final title = titleController.text.trim();
-    final message = messageController.text.trim();
+  Future<void> _markSent(ScheduleItem item) async {
+    setState(() => _replaceItem(item.copyWith(status: ScheduleStatus.sent)));
+    await _save();
+  }
 
-    if (title.isEmpty || message.isEmpty) {
+  Future<void> _cancel(ScheduleItem item) async {
+    setState(
+        () => _replaceItem(item.copyWith(status: ScheduleStatus.cancelled)));
+    await _save();
+  }
+
+  Future<void> _duplicate(ScheduleItem item) async {
+    final now = DateTime.now();
+    final copy = item.copyWith(
+      id: now.microsecondsSinceEpoch.toString(),
+      scheduledAt: now.add(const Duration(hours: 1)),
+      status: ScheduleStatus.scheduled,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    setState(() {
+      _items.add(copy);
+      _items.sort(_sortScheduleItems);
+    });
+
+    await _save();
+  }
+
+  Future<void> _openSms(ScheduleItem item) async {
+    final uri = Uri(
+      scheme: 'sms',
+      path: item.phone,
+      queryParameters: {'body': item.message},
+    );
+
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!mounted) return;
+
+    if (!opened) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter a title and message.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+        const SnackBar(content: Text('Could not open the SMS app.')),
       );
       return;
     }
 
-    final startAt = DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
-      selectedTime.hour,
-      selectedTime.minute,
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('SMS opened. Mark it sent after sending.'),
+        action: SnackBarAction(
+          label: 'Mark sent',
+          onPressed: () => _markSent(item),
+        ),
+      ),
     );
-
-    final reminder = ScheduledReminder(
-      id: existing?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-      title: title,
-      message: message,
-      recipientId: recipient.id,
-      recipientName: recipient.name,
-      recipientNumber: recipient.number,
-      scheduleType: selectedType,
-      startAt: startAt,
-      createdAt: existing?.createdAt ?? DateTime.now(),
-      lastSentAt: existing?.lastSentAt,
-    );
-
-    if (existing == null) {
-      await _scheduleStore.addReminder(reminder);
-    } else {
-      await _scheduleStore.updateReminder(reminder);
-    }
-
-    await _load();
   }
 
-  Future<void> _deleteReminder(ScheduledReminder reminder) async {
-    await _scheduleStore.deleteReminder(reminder.id);
-    await _load();
-  }
-
-  Future<void> _markSent(ScheduledReminder reminder) async {
-    await _scheduleStore.markSent(reminder.id);
-    await _load();
-  }
-
-  Map<String, List<ScheduledReminder>> _groupByDay(
-    List<ScheduledReminder> reminders,
-  ) {
-    final now = DateTime.now();
-    final grouped = <String, List<ScheduledReminder>>{};
-
-    for (final reminder in reminders) {
-      final displayDate = reminder.displayDate(now) ?? reminder.startAt;
-      final label = _dayLabel(displayDate);
-
-      grouped.putIfAbsent(label, () => <ScheduledReminder>[]);
-      grouped[label]!.add(reminder);
-    }
-
-    return grouped;
+  void _replaceItem(ScheduleItem updated) {
+    final index = _items.indexWhere((item) => item.id == updated.id);
+    if (index == -1) return;
+    _items[index] = updated.copyWith(updatedAt: DateTime.now());
+    _items.sort(_sortScheduleItems);
   }
 
   @override
   Widget build(BuildContext context) {
-    final visible = _visibleReminders;
-    final grouped = _groupByDay(visible);
+    final visibleItems = _visibleItems;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
@@ -770,190 +223,520 @@ class _ScheduleCenterScreenState extends State<ScheduleCenterScreen> {
         centerTitle: false,
         actions: [
           IconButton(
+            tooltip: 'Reload',
             onPressed: _load,
-            icon: const Icon(CupertinoIcons.refresh),
+            icon: const Icon(CupertinoIcons.arrow_clockwise),
+          ),
+          IconButton(
+            tooltip: 'New schedule',
+            onPressed: () => _upsert(),
+            icon: const Icon(CupertinoIcons.calendar_badge_plus),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addReminder,
-        icon: const Icon(CupertinoIcons.plus),
+        onPressed: () => _upsert(),
+        icon: const Icon(CupertinoIcons.calendar_badge_plus),
         label: const Text('New schedule'),
       ),
-      body: _isLoading
+      body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
-              children: [
-                _HeroCard(
-                  dueCount: _dueCount,
-                  upcomingCount: _upcomingCount,
-                  blockedCount: _blockedCount,
-                ),
-                const SizedBox(height: 16),
-                _FilterBar(
-                  selected: _filter,
-                  onChanged: (value) {
-                    setState(() => _filter = value);
-                  },
-                ),
-                const SizedBox(height: 16),
-                if (visible.isEmpty)
-                  const _EmptyCard()
-                else
-                  ...grouped.entries.expand(
-                    (entry) => [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8, bottom: 8),
-                        child: Text(
-                          entry.key,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                          ),
+          : SafeArea(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 96),
+                  children: [
+                    _HeroStatsCard(
+                      dueCount: _dueCount,
+                      upcomingCount: _upcomingCount,
+                      sentCount: _sentCount,
+                      cancelledCount: _cancelledCount,
+                    ),
+                    const SizedBox(height: 16),
+                    _SearchBox(controller: _searchController),
+                    const SizedBox(height: 12),
+                    _FilterBar(
+                      selected: _filter,
+                      dueCount: _dueCount,
+                      upcomingCount: _upcomingCount,
+                      sentCount: _sentCount,
+                      cancelledCount: _cancelledCount,
+                      onChanged: (filter) => setState(() => _filter = filter),
+                    ),
+                    const SizedBox(height: 16),
+                    if (visibleItems.isEmpty)
+                      const _EmptyState()
+                    else
+                      ...visibleItems.map(
+                        (item) => _ScheduleCard(
+                          item: item,
+                          onOpenSms: () => _openSms(item),
+                          onEdit: () => _upsert(existing: item),
+                          onMarkSent: () => _markSent(item),
+                          onCancel: () => _cancel(item),
+                          onDuplicate: () => _duplicate(item),
                         ),
                       ),
-                      ...entry.value.map(
-                        (reminder) {
-                          final recipient = _recipientFor(reminder);
-                          final status = reminder.status(
-                            contactExists: recipient != null,
-                            contactConsented: recipient?.consented ?? false,
-                          );
-
-                          return _ReminderCard(
-                            reminder: reminder,
-                            status: status,
-                            displayDate: reminder.displayDate(DateTime.now()) ??
-                                reminder.startAt,
-                            onTap: () => _editReminder(reminder),
-                            onMarkSent: () => _markSent(reminder),
-                            onDelete: () => _deleteReminder(reminder),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ),
     );
   }
+}
 
-  static InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: const Color(0xFFF9FAFB),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide.none,
+enum ScheduleStatus { scheduled, sent, cancelled }
+
+enum SchedulePriority { low, normal, high, urgent }
+
+enum ScheduleFilter { due, upcoming, sent, cancelled, all }
+
+class ScheduleItem {
+  const ScheduleItem({
+    required this.id,
+    required this.recipientName,
+    required this.phone,
+    required this.message,
+    required this.label,
+    required this.scheduledAt,
+    required this.priority,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String recipientName;
+  final String phone;
+  final String message;
+  final String label;
+  final DateTime scheduledAt;
+  final SchedulePriority priority;
+  final ScheduleStatus status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  bool get isDue {
+    final now = DateTime.now();
+    return status == ScheduleStatus.scheduled && !scheduledAt.isAfter(now);
+  }
+
+  ScheduleItem copyWith({
+    String? id,
+    String? recipientName,
+    String? phone,
+    String? message,
+    String? label,
+    DateTime? scheduledAt,
+    SchedulePriority? priority,
+    ScheduleStatus? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return ScheduleItem(
+      id: id ?? this.id,
+      recipientName: recipientName ?? this.recipientName,
+      phone: phone ?? this.phone,
+      message: message ?? this.message,
+      label: label ?? this.label,
+      scheduledAt: scheduledAt ?? this.scheduledAt,
+      priority: priority ?? this.priority,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'recipientName': recipientName,
+        'phone': phone,
+        'message': message,
+        'label': label,
+        'scheduledAt': scheduledAt.toIso8601String(),
+        'priority': priority.name,
+        'status': status.name,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory ScheduleItem.fromJson(Map<String, dynamic> json) {
+    final createdAt =
+        DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now();
+
+    return ScheduleItem(
+      id: json['id'] as String? ?? createdAt.microsecondsSinceEpoch.toString(),
+      recipientName: json['recipientName'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      message: json['message'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      scheduledAt: DateTime.tryParse(json['scheduledAt'] as String? ?? '') ??
+          DateTime.now(),
+      priority: SchedulePriority.values.firstWhere(
+        (priority) => priority.name == json['priority'],
+        orElse: () => SchedulePriority.normal,
+      ),
+      status: ScheduleStatus.values.firstWhere(
+        (status) => status.name == json['status'],
+        orElse: () => ScheduleStatus.scheduled,
+      ),
+      createdAt: createdAt,
+      updatedAt:
+          DateTime.tryParse(json['updatedAt'] as String? ?? '') ?? createdAt,
+    );
+  }
+}
+
+class _ScheduleEditorSheet extends StatefulWidget {
+  const _ScheduleEditorSheet({this.existing});
+
+  final ScheduleItem? existing;
+
+  @override
+  State<_ScheduleEditorSheet> createState() => _ScheduleEditorSheetState();
+}
+
+class _ScheduleEditorSheetState extends State<_ScheduleEditorSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _messageController;
+  late final TextEditingController _labelController;
+  late DateTime _scheduledAt;
+  late SchedulePriority _priority;
+
+  static const _templates = [
+    'Hi, this is a quick reminder.',
+    'Just checking in — please reply when you can.',
+    'Your appointment reminder is coming up.',
+    'Thanks. I will follow up again soon.',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    _nameController =
+        TextEditingController(text: existing?.recipientName ?? '');
+    _phoneController = TextEditingController(text: existing?.phone ?? '');
+    _messageController = TextEditingController(text: existing?.message ?? '');
+    _labelController = TextEditingController(text: existing?.label ?? '');
+    _scheduledAt = existing?.scheduledAt ??
+        DateTime.now().add(const Duration(minutes: 30));
+    _priority = existing?.priority ?? SchedulePriority.normal;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _messageController.dispose();
+    _labelController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _scheduledAt,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: now.add(const Duration(days: 730)),
+    );
+
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      _scheduledAt = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        _scheduledAt.hour,
+        _scheduledAt.minute,
+      );
+    });
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_scheduledAt),
+    );
+
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      _scheduledAt = DateTime(
+        _scheduledAt.year,
+        _scheduledAt.month,
+        _scheduledAt.day,
+        picked.hour,
+        picked.minute,
+      );
+    });
+  }
+
+  void _applyTemplate(String template) {
+    final current = _messageController.text.trim();
+    _messageController.text =
+        current.isEmpty ? template : '$current\n$template';
+    _messageController.selection = TextSelection.collapsed(
+      offset: _messageController.text.length,
+    );
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final now = DateTime.now();
+    if (!_scheduledAt.isAfter(now)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose a future date and time.')),
+      );
+      return;
+    }
+
+    final existing = widget.existing;
+
+    Navigator.of(context).pop(
+      ScheduleItem(
+        id: existing?.id ?? now.microsecondsSinceEpoch.toString(),
+        recipientName: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        message: _messageController.text.trim(),
+        label: _labelController.text.trim(),
+        scheduledAt: _scheduledAt,
+        priority: _priority,
+        status: ScheduleStatus.scheduled,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
       ),
     );
   }
 
-  static String _typeLabel(ScheduleType type) {
-    switch (type) {
-      case ScheduleType.oneTime:
-        return 'One time';
-      case ScheduleType.daily:
-        return 'Daily';
-      case ScheduleType.weekly:
-        return 'Weekly';
-      case ScheduleType.monthly:
-        return 'Monthly';
-      case ScheduleType.customDate:
-        return 'Custom date';
-      case ScheduleType.customTime:
-        return 'Custom time';
-    }
-  }
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
 
-  static String _statusLabel(ReminderStatus status) {
-    switch (status) {
-      case ReminderStatus.due:
-        return 'Due';
-      case ReminderStatus.upcoming:
-        return 'Upcoming';
-      case ReminderStatus.sent:
-        return 'Sent';
-      case ReminderStatus.blocked:
-        return 'Blocked';
-    }
-  }
-
-  static String _formatDate(DateTime value) {
-    return '${value.year.toString().padLeft(4, '0')}-'
-        '${value.month.toString().padLeft(2, '0')}-'
-        '${value.day.toString().padLeft(2, '0')}';
-  }
-
-  static String _formatDateTime(DateTime value) {
-    return '${_formatDate(value)} '
-        '${value.hour.toString().padLeft(2, '0')}:'
-        '${value.minute.toString().padLeft(2, '0')}';
-  }
-
-  static String _dayLabel(DateTime value) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final target = DateTime(value.year, value.month, value.day);
-    final diff = target.difference(today).inDays;
-
-    if (diff == 0) {
-      return 'Today';
-    }
-
-    if (diff == 1) {
-      return 'Tomorrow';
-    }
-
-    if (diff == -1) {
-      return 'Yesterday';
-    }
-
-    return _formatDate(value);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(18, 18, 18, bottom + 18),
+      child: Form(
+        key: _formKey,
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const _SheetHandle(),
+            Text(
+              widget.existing == null ? 'New schedule' : 'Edit schedule',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _nameController,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Recipient name',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Name is required'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Phone number',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                final text = value?.trim() ?? '';
+                if (text.isEmpty) return 'Phone is required';
+                if (text.replaceAll(RegExp(r'[^0-9+]'), '').length < 7) {
+                  return 'Enter a valid phone number';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _labelController,
+              decoration: const InputDecoration(
+                labelText: 'Label',
+                hintText: 'appointment, follow-up, urgent',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _messageController,
+              maxLines: 5,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Message',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Message is required'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _templates
+                  .map(
+                    (template) => ActionChip(
+                      label: Text(template),
+                      onPressed: () => _applyTemplate(template),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<SchedulePriority>(
+              initialValue: _priority,
+              decoration: const InputDecoration(
+                labelText: 'Priority',
+                border: OutlineInputBorder(),
+              ),
+              items: SchedulePriority.values
+                  .map(
+                    (priority) => DropdownMenuItem(
+                      value: priority,
+                      child: Text(priority.name.toUpperCase()),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _priority = value);
+              },
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickDate,
+                    icon: const Icon(CupertinoIcons.calendar),
+                    label: Text(_formatDate(_scheduledAt)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickTime,
+                    icon: const Icon(CupertinoIcons.time),
+                    label: Text(_formatTime(_scheduledAt)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _relativeTime(_scheduledAt),
+              style: const TextStyle(
+                color: CupertinoColors.secondaryLabel,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: _save,
+              icon: const Icon(CupertinoIcons.check_mark),
+              label: const Text('Save schedule'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
-class _HeroCard extends StatelessWidget {
-  const _HeroCard({
+class _HeroStatsCard extends StatelessWidget {
+  const _HeroStatsCard({
     required this.dueCount,
     required this.upcomingCount,
-    required this.blockedCount,
+    required this.sentCount,
+    required this.cancelledCount,
   });
 
   final int dueCount;
   final int upcomingCount;
-  final int blockedCount;
+  final int sentCount;
+  final int cancelledCount;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111827),
-        borderRadius: BorderRadius.circular(30),
+      decoration: const BoxDecoration(
+        color: Color(0xFF111827),
+        borderRadius: BorderRadius.all(Radius.circular(30)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            CupertinoIcons.calendar_badge_plus,
-            color: Colors.white,
-            size: 38,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              '$dueCount due\n$upcomingCount upcoming\n$blockedCount blocked',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 23,
-                fontWeight: FontWeight.w900,
-                height: 1.18,
-              ),
+          const Icon(CupertinoIcons.calendar, color: Colors.white, size: 34),
+          const SizedBox(height: 14),
+          const Text(
+            'Schedule Center',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.7,
             ),
           ),
+          const SizedBox(height: 8),
+          const Text(
+            'Track due messages, upcoming sends, and completed communication from one visual queue.',
+            style: TextStyle(
+              color: Colors.white70,
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _StatPill(label: '$dueCount due'),
+              _StatPill(label: '$upcomingCount upcoming'),
+              _StatPill(label: '$sentCount sent'),
+              _StatPill(label: '$cancelledCount cancelled'),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _SearchBox extends StatelessWidget {
+  const _SearchBox({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        prefixIcon: const Icon(CupertinoIcons.search),
+        hintText: 'Search schedules, names, numbers, labels',
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
@@ -962,245 +745,383 @@ class _HeroCard extends StatelessWidget {
 class _FilterBar extends StatelessWidget {
   const _FilterBar({
     required this.selected,
+    required this.dueCount,
+    required this.upcomingCount,
+    required this.sentCount,
+    required this.cancelledCount,
     required this.onChanged,
   });
 
-  final String selected;
-  final ValueChanged<String> onChanged;
+  final ScheduleFilter selected;
+  final int dueCount;
+  final int upcomingCount;
+  final int sentCount;
+  final int cancelledCount;
+  final ValueChanged<ScheduleFilter> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    const filters = ['All', 'Due', 'Upcoming', 'Sent', 'Blocked'];
+    final labels = {
+      ScheduleFilter.due: 'Due ($dueCount)',
+      ScheduleFilter.upcoming: 'Upcoming ($upcomingCount)',
+      ScheduleFilter.sent: 'Sent ($sentCount)',
+      ScheduleFilter.cancelled: 'Cancelled ($cancelledCount)',
+      ScheduleFilter.all: 'All',
+    };
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: filters.map((filter) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              selected: selected == filter,
-              label: Text(filter),
-              onSelected: (_) => onChanged(filter),
-            ),
-          );
-        }).toList(),
-      ),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: ScheduleFilter.values.map((filter) {
+        return FilterChip(
+          label: Text(labels[filter]!),
+          selected: selected == filter,
+          onSelected: (_) => onChanged(filter),
+        );
+      }).toList(),
     );
   }
 }
 
-class _ReminderCard extends StatelessWidget {
-  const _ReminderCard({
-    required this.reminder,
-    required this.status,
-    required this.displayDate,
-    required this.onTap,
+class _ScheduleCard extends StatelessWidget {
+  const _ScheduleCard({
+    required this.item,
+    required this.onOpenSms,
+    required this.onEdit,
     required this.onMarkSent,
-    required this.onDelete,
+    required this.onCancel,
+    required this.onDuplicate,
   });
 
-  final ScheduledReminder reminder;
-  final ReminderStatus status;
-  final DateTime displayDate;
-  final VoidCallback onTap;
+  final ScheduleItem item;
+  final VoidCallback onOpenSms;
+  final VoidCallback onEdit;
   final VoidCallback onMarkSent;
-  final VoidCallback onDelete;
+  final VoidCallback onCancel;
+  final VoidCallback onDuplicate;
 
   @override
   Widget build(BuildContext context) {
-    return Dismissible(
-      key: ValueKey(reminder.id),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) => onDelete(),
-      background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        alignment: Alignment.centerRight,
-        decoration: BoxDecoration(
-          color: const Color(0xFFEF4444),
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: const Icon(CupertinoIcons.trash_fill, color: Colors.white),
-      ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _StatusDot(status: status),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        reminder.title,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      _ScheduleCenterScreenState._statusLabel(status),
-                      style: TextStyle(
-                        color: _statusColor(status),
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  reminder.message,
+    final active = item.status == ScheduleStatus.scheduled;
+
+    return _SurfaceCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _PriorityDot(priority: item.priority),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  item.recipientName,
                   style: const TextStyle(
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
+                      fontSize: 18, fontWeight: FontWeight.w900),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  '${reminder.recipientName} - ${reminder.recipientNumber}',
-                  style: const TextStyle(
-                    color: Color(0xFF0A84FF),
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${reminder.scheduleLabel} - '
-                  '${_ScheduleCenterScreenState._formatDateTime(displayDate)}',
-                  style: const TextStyle(
-                    color: CupertinoColors.secondaryLabel,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (status == ReminderStatus.due) ...[
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: onMarkSent,
-                    icon: const Icon(CupertinoIcons.check_mark),
-                    label: const Text('Mark sent'),
-                  ),
-                ],
-              ],
+              ),
+              _StatusChip(item: item),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            item.phone,
+            style: const TextStyle(
+              color: CupertinoColors.secondaryLabel,
+              fontWeight: FontWeight.w700,
             ),
           ),
+          const SizedBox(height: 8),
+          Text(
+            '${_formatDate(item.scheduledAt)} at ${_formatTime(item.scheduledAt)} • ${_relativeTime(item.scheduledAt)}',
+            style: TextStyle(
+              color: item.isDue
+                  ? const Color(0xFFDC2626)
+                  : CupertinoColors.secondaryLabel,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (item.label.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _Chip(label: item.label),
+          ],
+          const SizedBox(height: 10),
+          Text(item.message, style: const TextStyle(height: 1.35)),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonalIcon(
+                onPressed: active ? onOpenSms : null,
+                icon: const Icon(CupertinoIcons.chat_bubble_text),
+                label: Text(item.isDue ? 'Open SMS now' : 'Open SMS'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(CupertinoIcons.pencil),
+                label: const Text('Edit'),
+              ),
+              OutlinedButton.icon(
+                onPressed: active ? onMarkSent : null,
+                icon: const Icon(CupertinoIcons.check_mark),
+                label: const Text('Sent'),
+              ),
+              OutlinedButton.icon(
+                onPressed: active ? onCancel : null,
+                icon: const Icon(CupertinoIcons.xmark),
+                label: const Text('Cancel'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onDuplicate,
+                icon: const Icon(CupertinoIcons.square_on_square),
+                label: const Text('Duplicate'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.item});
+
+  final ScheduleItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (item.status) {
+      ScheduleStatus.scheduled => item.isDue ? 'Due' : 'Scheduled',
+      ScheduleStatus.sent => 'Sent',
+      ScheduleStatus.cancelled => 'Cancelled',
+    };
+
+    final color = switch (item.status) {
+      ScheduleStatus.scheduled =>
+        item.isDue ? const Color(0xFFDC2626) : const Color(0xFF0A84FF),
+      ScheduleStatus.sent => const Color(0xFF16A34A),
+      ScheduleStatus.cancelled => const Color(0xFF6B7280),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.w900),
+      ),
+    );
+  }
+}
+
+class _PriorityDot extends StatelessWidget {
+  const _PriorityDot({required this.priority});
+
+  final SchedulePriority priority;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (priority) {
+      SchedulePriority.low => const Color(0xFF6B7280),
+      SchedulePriority.normal => const Color(0xFF0A84FF),
+      SchedulePriority.high => const Color(0xFFF59E0B),
+      SchedulePriority.urgent => const Color(0xFFDC2626),
+    };
+
+    return Tooltip(
+      message: priority.name,
+      child: Container(
+        width: 14,
+        height: 14,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _SurfaceCard(
+      child: Column(
+        children: [
+          Icon(CupertinoIcons.calendar_badge_plus,
+              size: 38, color: Color(0xFF0A84FF)),
+          SizedBox(height: 10),
+          Text(
+            'No schedules here',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Create a schedule or change the filter.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: CupertinoColors.secondaryLabel,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SurfaceCard extends StatelessWidget {
+  const _SurfaceCard({required this.child, this.margin = EdgeInsets.zero});
+
+  final Widget child;
+  final EdgeInsetsGeometry margin;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: margin,
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.all(Radius.circular(22)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 14,
+            offset: Offset(0, 7),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _StatPill extends StatelessWidget {
+  const _StatPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style:
+            const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A84FF).withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF0A84FF),
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
   }
-
-  static Color _statusColor(ReminderStatus status) {
-    switch (status) {
-      case ReminderStatus.due:
-        return const Color(0xFFDC2626);
-      case ReminderStatus.upcoming:
-        return const Color(0xFF0A84FF);
-      case ReminderStatus.sent:
-        return const Color(0xFF16A34A);
-      case ReminderStatus.blocked:
-        return const Color(0xFFEA580C);
-    }
-  }
 }
 
-class _StatusDot extends StatelessWidget {
-  const _StatusDot({required this.status});
-
-  final ReminderStatus status;
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 13,
-      height: 13,
-      decoration: BoxDecoration(
-        color: _ReminderCard._statusColor(status),
-        shape: BoxShape.circle,
+    return Center(
+      child: Container(
+        width: 44,
+        height: 5,
+        margin: const EdgeInsets.only(bottom: 18),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(999),
+        ),
       ),
     );
   }
 }
 
-class _EditorField extends StatelessWidget {
-  const _EditorField({
-    required this.controller,
-    required this.label,
-    required this.hint,
-    this.maxLines = 1,
-  });
+int _sortScheduleItems(ScheduleItem a, ScheduleItem b) {
+  final statusCompare = _statusRank(a).compareTo(_statusRank(b));
+  if (statusCompare != 0) return statusCompare;
 
-  final TextEditingController controller;
-  final String label;
-  final String hint;
-  final int maxLines;
+  final priorityCompare =
+      _priorityRank(b.priority).compareTo(_priorityRank(a.priority));
+  if (priorityCompare != 0) return priorityCompare;
 
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      decoration: _ScheduleCenterScreenState._inputDecoration(label).copyWith(
-        hintText: hint,
-      ),
-    );
-  }
+  return a.scheduledAt.compareTo(b.scheduledAt);
 }
 
-class _PickerTile extends StatelessWidget {
-  const _PickerTile({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFF9FAFB),
-      borderRadius: BorderRadius.circular(18),
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        subtitle: Text(value),
-        trailing: const Icon(CupertinoIcons.chevron_forward),
-        onTap: onTap,
-      ),
-    );
-  }
+int _statusRank(ScheduleItem item) {
+  if (item.status == ScheduleStatus.scheduled && item.isDue) return 0;
+  if (item.status == ScheduleStatus.scheduled) return 1;
+  if (item.status == ScheduleStatus.sent) return 2;
+  return 3;
 }
 
-class _EmptyCard extends StatelessWidget {
-  const _EmptyCard();
+int _priorityRank(SchedulePriority priority) {
+  return switch (priority) {
+    SchedulePriority.low => 0,
+    SchedulePriority.normal => 1,
+    SchedulePriority.high => 2,
+    SchedulePriority.urgent => 3,
+  };
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: const Text(
-        'No schedules yet. Create one with the New schedule button.',
-        style: TextStyle(fontWeight: FontWeight.w700),
-      ),
-    );
+String _formatDate(DateTime dateTime) {
+  final month = dateTime.month.toString().padLeft(2, '0');
+  final day = dateTime.day.toString().padLeft(2, '0');
+  return '${dateTime.year}-$month-$day';
+}
+
+String _formatTime(DateTime dateTime) {
+  final hour = dateTime.hour.toString().padLeft(2, '0');
+  final minute = dateTime.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
+}
+
+String _relativeTime(DateTime dateTime) {
+  final diff = dateTime.difference(DateTime.now());
+  final abs = diff.abs();
+
+  late final int amount;
+  late final String unit;
+
+  if (abs.inDays >= 1) {
+    amount = abs.inDays;
+    unit = amount == 1 ? 'day' : 'days';
+  } else if (abs.inHours >= 1) {
+    amount = abs.inHours;
+    unit = amount == 1 ? 'hour' : 'hours';
+  } else {
+    amount = abs.inMinutes < 1 ? 1 : abs.inMinutes;
+    unit = amount == 1 ? 'minute' : 'minutes';
   }
+
+  return diff.isNegative ? '$amount $unit overdue' : 'in $amount $unit';
 }

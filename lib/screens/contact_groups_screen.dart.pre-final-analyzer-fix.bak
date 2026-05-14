@@ -93,10 +93,6 @@ class _ContactGroupsScreenState extends State<ContactGroupsScreen> {
     var isBlocked = initialBlocked;
     final selectedIds = initialContactIds.toSet();
 
-    if (!mounted) {
-      return;
-    }
-
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -332,6 +328,10 @@ class _ContactGroupsScreenState extends State<ContactGroupsScreen> {
         return;
       }
 
+      if (!mounted) {
+        return;
+      }
+
       setState(() => _status = reason);
       return;
     }
@@ -343,10 +343,6 @@ class _ContactGroupsScreenState extends State<ContactGroupsScreen> {
     final messageController = TextEditingController(
       text: 'Hi {name}, reminder for {appointment} at {time}{location}.',
     );
-
-    if (!mounted) {
-      return;
-    }
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
