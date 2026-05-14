@@ -6,6 +6,7 @@ import 'contacts_screen.dart';
 import 'direct_sms_screen.dart';
 import 'send_history_screen.dart';
 import 'send_queue_screen.dart';
+import 'schedule_center_screen.dart';
 import 'whatsapp_handoff_screen.dart';
 import 'whatsapp_setup_screen.dart';
 
@@ -46,6 +47,12 @@ class HomeScreen extends StatelessWidget {
         title: 'Direct SMS',
         subtitle: 'Send a real SMS now.',
         screen: DirectSmsScreen(),
+      ),
+      const _HomeItem(
+        icon: CupertinoIcons.calendar_badge_clock,
+        title: 'Schedule Center',
+        subtitle: 'Create, review, and track due SMS reminders.',
+        screen: ScheduleCenterScreen(),
       ),
       const _HomeItem(
         icon: CupertinoIcons.tray_full_fill,
