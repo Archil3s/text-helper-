@@ -328,7 +328,7 @@ class ContactPage extends StatelessWidget {
   ]);
 }
 
-class SchedulePage extends StatelessWidget {
+class SchedulePage extends StatefulWidget {
   const SchedulePage({super.key, required this.jobs, required this.autoSend, required this.onToggleAutoSend, required this.onSyncAlarms, required this.onEdit, required this.onOpen, required this.onSent, required this.onCancel});
   final List<Job> jobs;
   final bool autoSend;
@@ -339,21 +339,46 @@ class SchedulePage extends StatelessWidget {
   final void Function(Job) onSent;
   final void Function(Job) onCancel;
   @override
+  State<SchedulePage> createState() => _SchedulePageState();
+}
+
+class _SchedulePageState extends State<SchedulePage> {
+  late DateTime calendarMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  DateTime? selectedDay;
+
+  @override
   Widget build(BuildContext c) {
-    final sorted = [...jobs]..sort((a, b) => a.time.compareTo(b.time));
-    final due = jobs.where((j) => j.status == Status.scheduled && j.due).length;
-    final upcoming = jobs.where((j) => j.status == Status.scheduled && !j.due).length;
-    return Page(title: 'Scheduler', icon: Icons.event_note, subtitle: '$due due • $upcoming upcoming. Turn on Auto-send to send while the app is closed.', fab: () => onEdit(null), children: [
+    final sorted = [...widget.jobs]..sort((a, b) => a.time.compareTo(b.time));
+    final filtered = selectedDay == null ? sorted : sorted.where((j) => sameDay(j.time, selectedDay!)).toList();
+    final due = widget.jobs.where((j) => j.status == Status.scheduled && j.due).length;
+    final upcoming = widget.jobs.where((j) => j.status == Status.scheduled && !j.due).length;
+    return Page(title: 'Scheduler', icon: Icons.event_note, subtitle: '$due due • $upcoming upcoming. Tap a calendar day to filter.', fab: () => widget.onEdit(null), children: [
       Card(child: SwitchListTile(
-        value: autoSend,
-        onChanged: onToggleAutoSend,
+        value: widget.autoSend,
+        onChanged: widget.onToggleAutoSend,
         title: const Text('Auto-send scheduled SMS'),
         subtitle: const Text('Uses Android SMS permission and alarms. Only explicit scheduled messages are sent.'),
-        secondary: Icon(autoSend ? Icons.send : Icons.sms_outlined),
+        secondary: Icon(widget.autoSend ? Icons.send : Icons.sms_outlined),
       )),
-      Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: onSyncAlarms, icon: const Icon(Icons.sync), label: const Text('Sync background alarms now'))),
-      if (sorted.isEmpty) const EmptyCard(icon: Icons.event_note, title: 'No scheduled texts', message: 'Tap + to schedule a message, or schedule one directly from a contact.'),
-      ...sorted.map((j) => Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: widget.onSyncAlarms, icon: const Icon(Icons.sync), label: const Text('Sync background alarms now'))),
+      SchedulerCalendar(
+        month: calendarMonth,
+        selectedDay: selectedDay,
+        jobs: widget.jobs,
+        onPrevious: () => setState(() => calendarMonth = DateTime(calendarMonth.year, calendarMonth.month - 1)),
+        onNext: () => setState(() => calendarMonth = DateTime(calendarMonth.year, calendarMonth.month + 1)),
+        onPickDay: (day) => setState(() => selectedDay = selectedDay != null && sameDay(selectedDay!, day) ? null : day),
+      ),
+      if (selectedDay != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(children: [
+            Expanded(child: Text('Showing ${_d(selectedDay!)}', style: const TextStyle(fontWeight: FontWeight.bold))),
+            TextButton(onPressed: () => setState(() => selectedDay = null), child: const Text('Clear')),
+          ]),
+        ),
+      if (filtered.isEmpty) const EmptyCard(icon: Icons.event_note, title: 'No scheduled texts', message: 'Tap + to schedule a message, or schedule one directly from a contact.'),
+      ...filtered.map((j) => Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Expanded(child: Text(j.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))), StatusPill(job: j)]),
         Text(j.phone, style: const TextStyle(color: Colors.black54)),
         const SizedBox(height: 6),
@@ -362,13 +387,82 @@ class SchedulePage extends StatelessWidget {
         Text(j.text),
         const SizedBox(height: 12),
         Wrap(spacing: 8, runSpacing: 8, children: [
-          FilledButton.tonalIcon(onPressed: j.status == Status.scheduled ? () => onOpen(j) : null, icon: const Icon(Icons.sms), label: const Text('Open SMS')),
-          OutlinedButton(onPressed: () => onEdit(j), child: const Text('Edit')),
-          OutlinedButton(onPressed: j.status == Status.scheduled ? () => onSent(j) : null, child: const Text('Sent')),
-          OutlinedButton(onPressed: j.status == Status.scheduled ? () => onCancel(j) : null, child: const Text('Cancel')),
+          FilledButton.tonalIcon(onPressed: j.status == Status.scheduled ? () => widget.onOpen(j) : null, icon: const Icon(Icons.sms), label: const Text('Open SMS')),
+          OutlinedButton(onPressed: () => widget.onEdit(j), child: const Text('Edit')),
+          OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onSent(j) : null, child: const Text('Sent')),
+          OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onCancel(j) : null, child: const Text('Cancel')),
         ])
       ]))))
     ]);
+  }
+}
+
+class SchedulerCalendar extends StatelessWidget {
+  const SchedulerCalendar({super.key, required this.month, required this.selectedDay, required this.jobs, required this.onPrevious, required this.onNext, required this.onPickDay});
+  final DateTime month;
+  final DateTime? selectedDay;
+  final List<Job> jobs;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final ValueChanged<DateTime> onPickDay;
+
+  @override
+  Widget build(BuildContext context) {
+    final first = DateTime(month.year, month.month);
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final leadingBlanks = first.weekday - 1;
+    final cellCount = leadingBlanks + daysInMonth;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(children: [
+          Row(children: [
+            IconButton(onPressed: onPrevious, icon: const Icon(Icons.chevron_left)),
+            Expanded(child: Center(child: Text('${monthName(month.month)} ${month.year}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)))),
+            IconButton(onPressed: onNext, icon: const Icon(Icons.chevron_right)),
+          ]),
+          const Row(children: [
+            Expanded(child: Center(child: Text('M', style: TextStyle(fontWeight: FontWeight.bold)))),
+            Expanded(child: Center(child: Text('T', style: TextStyle(fontWeight: FontWeight.bold)))),
+            Expanded(child: Center(child: Text('W', style: TextStyle(fontWeight: FontWeight.bold)))),
+            Expanded(child: Center(child: Text('T', style: TextStyle(fontWeight: FontWeight.bold)))),
+            Expanded(child: Center(child: Text('F', style: TextStyle(fontWeight: FontWeight.bold)))),
+            Expanded(child: Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.bold)))),
+            Expanded(child: Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.bold)))),
+          ]),
+          const SizedBox(height: 8),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: cellCount,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, crossAxisSpacing: 6, mainAxisSpacing: 6),
+            itemBuilder: (context, index) {
+              if (index < leadingBlanks) return const SizedBox.shrink();
+              final day = index - leadingBlanks + 1;
+              final date = DateTime(month.year, month.month, day);
+              final count = jobs.where((job) => sameDay(job.time, date)).length;
+              final isToday = sameDay(date, DateTime.now());
+              final isSelected = selectedDay != null && sameDay(date, selectedDay!);
+              return InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => onPickDay(date),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFF0A84FF) : count > 0 ? const Color(0x1A0A84FF) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isToday ? const Color(0xFF0A84FF) : const Color(0xFFE5E7EB), width: isToday ? 2 : 1),
+                  ),
+                  child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text('$day', style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.black)),
+                    if (count > 0) Text('$count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : const Color(0xFF0A84FF))),
+                  ])),
+                ),
+              );
+            },
+          ),
+        ]),
+      ),
+    );
   }
 }
 
@@ -495,3 +589,5 @@ const gap = SizedBox(height: 12);
 const head = TextStyle(fontSize: 24, fontWeight: FontWeight.bold);
 String _d(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 String _t(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+bool sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+String monthName(int month) => const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month - 1];
