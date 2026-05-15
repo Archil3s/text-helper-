@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -72,11 +73,21 @@ class _AppState extends State<App> {
   final jobs = <Job>[];
   int tab = 0;
   bool loaded = false;
+  Timer? dueRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     load();
+    dueRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    dueRefreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> load() async {
@@ -262,7 +273,7 @@ class SchedulePage extends StatelessWidget {
     final sorted = [...jobs]..sort((a, b) => a.time.compareTo(b.time));
     final due = jobs.where((j) => j.status == Status.scheduled && j.due).length;
     final upcoming = jobs.where((j) => j.status == Status.scheduled && !j.due).length;
-    return Page(title: 'Scheduler', icon: Icons.event_note, subtitle: '$due due • $upcoming upcoming. Open a due SMS, then mark it sent after sending.', fab: () => onEdit(null), children: [
+    return Page(title: 'Scheduler', icon: Icons.event_note, subtitle: '$due due • $upcoming upcoming. Use +15 sec in the form for fast testing.', fab: () => onEdit(null), children: [
       if (sorted.isEmpty) const EmptyCard(icon: Icons.event_note, title: 'No scheduled texts', message: 'Tap + to schedule a message, or schedule one directly from a contact.'),
       ...sorted.map((j) => Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Expanded(child: Text(j.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))), StatusPill(job: j)]),
@@ -324,9 +335,22 @@ class _JobFormState extends State<JobForm> {
     if (id.isEmpty) ...[TextField(controller: name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Name')), gap, TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone')), gap],
     TextField(controller: msg, maxLines: 4, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(labelText: 'Message')),
     gap,
-    Row(children: [Expanded(child: OutlinedButton.icon(onPressed: pickDate, icon: const Icon(Icons.calendar_today), label: Text(_d(time)))), const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: pickTime, icon: const Icon(Icons.access_time), label: Text(_t(time))))]), gap,
+    Row(children: [Expanded(child: OutlinedButton.icon(onPressed: pickDate, icon: const Icon(Icons.calendar_today), label: Text(_d(time)))), const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: pickTime, icon: const Icon(Icons.access_time), label: Text(_t(time))))]),
+    gap,
+    const Text('Testing shortcuts', style: TextStyle(fontWeight: FontWeight.bold)),
+    const SizedBox(height: 6),
+    Wrap(spacing: 8, runSpacing: 8, children: [
+      ActionChip(label: const Text('+15 sec'), avatar: const Icon(Icons.timer, size: 18), onPressed: () => quickDelay(15)),
+      ActionChip(label: const Text('+30 sec'), avatar: const Icon(Icons.timer, size: 18), onPressed: () => quickDelay(30)),
+      ActionChip(label: const Text('+60 sec'), avatar: const Icon(Icons.timer, size: 18), onPressed: () => quickDelay(60)),
+      ActionChip(label: const Text('+5 min'), avatar: const Icon(Icons.schedule, size: 18), onPressed: () => quickDelay(300)),
+    ]),
+    gap,
+    Text('Selected: ${_d(time)} ${_t(time)}', style: const TextStyle(color: Colors.black54)),
+    gap,
     FilledButton(onPressed: saveJob, child: const Text('Save schedule'))
   ]);
+  void quickDelay(int seconds) => setState(() => time = DateTime.now().add(Duration(seconds: seconds)));
   Future<void> pickDate() async { final p = await showDatePicker(context: context, initialDate: time, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 730))); if (p != null) setState(() => time = DateTime(p.year, p.month, p.day, time.hour, time.minute)); }
   Future<void> pickTime() async { final p = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(time)); if (p != null) setState(() => time = DateTime(time.year, time.month, time.day, p.hour, p.minute)); }
   void saveJob() {
