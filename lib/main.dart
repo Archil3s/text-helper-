@@ -161,9 +161,9 @@ class _AppState extends State<App> {
         if (showResult) snack('Auto-send disabled. Background alarms cancelled.');
         return;
       }
-      final now = DateTime.now();
+      final alarmCutoff = DateTime.now().subtract(const Duration(minutes: 10));
       final alarms = jobs
-          .where((j) => j.status == Status.scheduled && j.time.isAfter(now) && j.phone.trim().isNotEmpty && j.text.trim().isNotEmpty)
+          .where((j) => j.status == Status.scheduled && j.time.isAfter(alarmCutoff) && j.phone.trim().isNotEmpty && j.text.trim().isNotEmpty)
           .map((j) => {
                 'alarmId': j.id,
                 'reminderId': j.id,
