@@ -127,9 +127,7 @@ class _AppState extends State<App> {
         return;
       }
       final canExact = await canScheduleExactAlarms();
-      if (!canExact) {
-        snack('Exact alarm permission may be needed for precise closed-app sending.');
-      }
+      if (!canExact) snack('Exact alarm permission may be needed for precise closed-app sending.');
     }
     setState(() => autoSend = enabled);
     final p = await SharedPreferences.getInstance();
@@ -215,9 +213,7 @@ class _AppState extends State<App> {
       } else {
         contacts[i] = r;
         for (var n = 0; n < jobs.length; n++) {
-          if (jobs[n].contactId == r.id && jobs[n].status == Status.scheduled) {
-            jobs[n] = jobs[n].copy(name: r.name, phone: r.phone);
-          }
+          if (jobs[n].contactId == r.id && jobs[n].status == Status.scheduled) jobs[n] = jobs[n].copy(name: r.name, phone: r.phone);
         }
       }
       contacts.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -227,19 +223,16 @@ class _AppState extends State<App> {
   }
 
   Future<void> editJob([Job? j, Contact? c]) async {
-    final r = await showModalBottomSheet<Job>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => JobForm(contacts: contacts, job: j, contact: c));
-    if (r == null) return;
+    final result = await showModalBottomSheet<List<Job>>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => JobForm(contacts: contacts, job: j, contact: c));
+    if (result == null || result.isEmpty) return;
     setState(() {
-      final i = jobs.indexWhere((x) => x.id == r.id);
-      if (i < 0) {
-        jobs.add(r);
-      } else {
-        jobs[i] = r;
-      }
+      if (j != null) jobs.removeWhere((x) => x.id == j.id);
+      jobs.addAll(result);
       jobs.sort((a, b) => a.time.compareTo(b.time));
     });
     await save();
-    snack(autoSend ? 'Message scheduled and synced for background send.' : 'Message scheduled. Enable auto-send for closed-app sending.');
+    final count = result.length;
+    snack(autoSend ? '$count scheduled send${count == 1 ? '' : 's'} synced for auto-send.' : '$count scheduled send${count == 1 ? '' : 's'} saved. Enable auto-send for closed-app sending.');
   }
 
   Future<void> toggleFavorite(Contact c) async {
@@ -288,12 +281,7 @@ class _SmsPageState extends State<SmsPage> {
   Contact? get selected { for (final x in widget.contacts) { if (x.id == id) return x; } return null; }
   @override
   Widget build(BuildContext c) => Page(title: 'SMS', icon: Icons.sms, subtitle: 'Pick a saved contact or type a number. Your SMS app opens with the draft ready to review.', children: [
-    DropdownButtonFormField<String>(
-      initialValue: widget.contacts.any((x) => x.id == id) ? id : '',
-      items: [const DropdownMenuItem(value: '', child: Text('Manual number')), ...widget.contacts.map((x) => DropdownMenuItem(value: x.id, child: Text('${x.name} • ${x.phone}')))],
-      onChanged: (v) => setState(() { id = v ?? ''; if (selected != null) phone.text = selected!.phone; }),
-      decoration: const InputDecoration(labelText: 'Saved contact'),
-    ),
+    DropdownButtonFormField<String>(initialValue: widget.contacts.any((x) => x.id == id) ? id : '', items: [const DropdownMenuItem(value: '', child: Text('Manual number')), ...widget.contacts.map((x) => DropdownMenuItem(value: x.id, child: Text('${x.name} • ${x.phone}')))], onChanged: (v) => setState(() { id = v ?? ''; if (selected != null) phone.text = selected!.phone; }), decoration: const InputDecoration(labelText: 'Saved contact')),
     gap,
     TextField(controller: phone, enabled: id.isEmpty, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone number')),
     gap,
@@ -353,30 +341,10 @@ class _SchedulePageState extends State<SchedulePage> {
     final due = widget.jobs.where((j) => j.status == Status.scheduled && j.due).length;
     final upcoming = widget.jobs.where((j) => j.status == Status.scheduled && !j.due).length;
     return Page(title: 'Scheduler', icon: Icons.event_note, subtitle: '$due due • $upcoming upcoming. Tap a calendar day to filter.', fab: () => widget.onEdit(null), children: [
-      Card(child: SwitchListTile(
-        value: widget.autoSend,
-        onChanged: widget.onToggleAutoSend,
-        title: const Text('Auto-send scheduled SMS'),
-        subtitle: const Text('Uses Android SMS permission and alarms. Only explicit scheduled messages are sent.'),
-        secondary: Icon(widget.autoSend ? Icons.send : Icons.sms_outlined),
-      )),
+      Card(child: SwitchListTile(value: widget.autoSend, onChanged: widget.onToggleAutoSend, title: const Text('Auto-send scheduled SMS'), subtitle: const Text('Uses Android SMS permission and alarms. Only explicit scheduled messages are sent.'), secondary: Icon(widget.autoSend ? Icons.send : Icons.sms_outlined))),
       Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: widget.onSyncAlarms, icon: const Icon(Icons.sync), label: const Text('Sync background alarms now'))),
-      SchedulerCalendar(
-        month: calendarMonth,
-        selectedDay: selectedDay,
-        jobs: widget.jobs,
-        onPrevious: () => setState(() => calendarMonth = DateTime(calendarMonth.year, calendarMonth.month - 1)),
-        onNext: () => setState(() => calendarMonth = DateTime(calendarMonth.year, calendarMonth.month + 1)),
-        onPickDay: (day) => setState(() => selectedDay = selectedDay != null && sameDay(selectedDay!, day) ? null : day),
-      ),
-      if (selectedDay != null)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(children: [
-            Expanded(child: Text('Showing ${_d(selectedDay!)}', style: const TextStyle(fontWeight: FontWeight.bold))),
-            TextButton(onPressed: () => setState(() => selectedDay = null), child: const Text('Clear')),
-          ]),
-        ),
+      SchedulerCalendar(month: calendarMonth, selectedDay: selectedDay, jobs: widget.jobs, onPrevious: () => setState(() => calendarMonth = DateTime(calendarMonth.year, calendarMonth.month - 1)), onNext: () => setState(() => calendarMonth = DateTime(calendarMonth.year, calendarMonth.month + 1)), onPickDay: (day) => setState(() => selectedDay = selectedDay != null && sameDay(selectedDay!, day) ? null : day)),
+      if (selectedDay != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(children: [Expanded(child: Text('Showing ${_d(selectedDay!)}', style: const TextStyle(fontWeight: FontWeight.bold))), TextButton(onPressed: () => setState(() => selectedDay = null), child: const Text('Clear'))])),
       if (filtered.isEmpty) const EmptyCard(icon: Icons.event_note, title: 'No scheduled texts', message: 'Tap + to schedule a message, or schedule one directly from a contact.'),
       ...filtered.map((j) => Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Expanded(child: Text(j.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))), StatusPill(job: j)]),
@@ -386,12 +354,7 @@ class _SchedulePageState extends State<SchedulePage> {
         const SizedBox(height: 8),
         Text(j.text),
         const SizedBox(height: 12),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          FilledButton.tonalIcon(onPressed: j.status == Status.scheduled ? () => widget.onOpen(j) : null, icon: const Icon(Icons.sms), label: const Text('Open SMS')),
-          OutlinedButton(onPressed: () => widget.onEdit(j), child: const Text('Edit')),
-          OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onSent(j) : null, child: const Text('Sent')),
-          OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onCancel(j) : null, child: const Text('Cancel')),
-        ])
+        Wrap(spacing: 8, runSpacing: 8, children: [FilledButton.tonalIcon(onPressed: j.status == Status.scheduled ? () => widget.onOpen(j) : null, icon: const Icon(Icons.sms), label: const Text('Open SMS')), OutlinedButton(onPressed: () => widget.onEdit(j), child: const Text('Edit')), OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onSent(j) : null, child: const Text('Sent')), OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onCancel(j) : null, child: const Text('Cancel'))])
       ]))))
     ]);
   }
@@ -412,57 +375,20 @@ class SchedulerCalendar extends StatelessWidget {
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final leadingBlanks = first.weekday - 1;
     final cellCount = leadingBlanks + daysInMonth;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(children: [
-          Row(children: [
-            IconButton(onPressed: onPrevious, icon: const Icon(Icons.chevron_left)),
-            Expanded(child: Center(child: Text('${monthName(month.month)} ${month.year}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)))),
-            IconButton(onPressed: onNext, icon: const Icon(Icons.chevron_right)),
-          ]),
-          const Row(children: [
-            Expanded(child: Center(child: Text('M', style: TextStyle(fontWeight: FontWeight.bold)))),
-            Expanded(child: Center(child: Text('T', style: TextStyle(fontWeight: FontWeight.bold)))),
-            Expanded(child: Center(child: Text('W', style: TextStyle(fontWeight: FontWeight.bold)))),
-            Expanded(child: Center(child: Text('T', style: TextStyle(fontWeight: FontWeight.bold)))),
-            Expanded(child: Center(child: Text('F', style: TextStyle(fontWeight: FontWeight.bold)))),
-            Expanded(child: Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.bold)))),
-            Expanded(child: Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.bold)))),
-          ]),
-          const SizedBox(height: 8),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: cellCount,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, crossAxisSpacing: 6, mainAxisSpacing: 6),
-            itemBuilder: (context, index) {
-              if (index < leadingBlanks) return const SizedBox.shrink();
-              final day = index - leadingBlanks + 1;
-              final date = DateTime(month.year, month.month, day);
-              final count = jobs.where((job) => sameDay(job.time, date)).length;
-              final isToday = sameDay(date, DateTime.now());
-              final isSelected = selectedDay != null && sameDay(date, selectedDay!);
-              return InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => onPickDay(date),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFF0A84FF) : count > 0 ? const Color(0x1A0A84FF) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isToday ? const Color(0xFF0A84FF) : const Color(0xFFE5E7EB), width: isToday ? 2 : 1),
-                  ),
-                  child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text('$day', style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.black)),
-                    if (count > 0) Text('$count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : const Color(0xFF0A84FF))),
-                  ])),
-                ),
-              );
-            },
-          ),
-        ]),
-      ),
-    );
+    return Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(children: [
+      Row(children: [IconButton(onPressed: onPrevious, icon: const Icon(Icons.chevron_left)), Expanded(child: Center(child: Text('${monthName(month.month)} ${month.year}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)))), IconButton(onPressed: onNext, icon: const Icon(Icons.chevron_right))]),
+      const Row(children: [Expanded(child: Center(child: Text('M', style: TextStyle(fontWeight: FontWeight.bold)))), Expanded(child: Center(child: Text('T', style: TextStyle(fontWeight: FontWeight.bold)))), Expanded(child: Center(child: Text('W', style: TextStyle(fontWeight: FontWeight.bold)))), Expanded(child: Center(child: Text('T', style: TextStyle(fontWeight: FontWeight.bold)))), Expanded(child: Center(child: Text('F', style: TextStyle(fontWeight: FontWeight.bold)))), Expanded(child: Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.bold)))), Expanded(child: Center(child: Text('S', style: TextStyle(fontWeight: FontWeight.bold))))]),
+      const SizedBox(height: 8),
+      GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: cellCount, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, crossAxisSpacing: 6, mainAxisSpacing: 6), itemBuilder: (context, index) {
+        if (index < leadingBlanks) return const SizedBox.shrink();
+        final day = index - leadingBlanks + 1;
+        final date = DateTime(month.year, month.month, day);
+        final count = jobs.where((job) => sameDay(job.time, date)).length;
+        final isToday = sameDay(date, DateTime.now());
+        final isSelected = selectedDay != null && sameDay(date, selectedDay!);
+        return InkWell(borderRadius: BorderRadius.circular(12), onTap: () => onPickDay(date), child: Container(decoration: BoxDecoration(color: isSelected ? const Color(0xFF0A84FF) : count > 0 ? const Color(0x1A0A84FF) : Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: isToday ? const Color(0xFF0A84FF) : const Color(0xFFE5E7EB), width: isToday ? 2 : 1)), child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Text('$day', style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.black)), if (count > 0) Text('$count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : const Color(0xFF0A84FF)))]))));
+      }),
+    ])));
   }
 }
 
@@ -472,21 +398,9 @@ class _ContactFormState extends State<ContactForm> {
   late final phone = TextEditingController(text: widget.c?.phone ?? '');
   late final note = TextEditingController(text: widget.c?.note ?? '');
   @override
-  Widget build(BuildContext c) => Sheet(children: [
-    Text(widget.c == null ? 'Add contact' : 'Edit contact', style: head), gap,
-    TextField(controller: name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Name')),
-    gap,
-    TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone')),
-    gap,
-    TextField(controller: note, maxLines: 3, decoration: const InputDecoration(labelText: 'Note')),
-    gap,
-    FilledButton(onPressed: saveContact, child: const Text('Save contact'))
-  ]);
+  Widget build(BuildContext c) => Sheet(children: [Text(widget.c == null ? 'Add contact' : 'Edit contact', style: head), gap, TextField(controller: name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Name')), gap, TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone')), gap, TextField(controller: note, maxLines: 3, decoration: const InputDecoration(labelText: 'Note')), gap, FilledButton(onPressed: saveContact, child: const Text('Save contact'))]);
   void saveContact() {
-    if (name.text.trim().isEmpty || phone.text.trim().length < 7) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name and a valid phone number are required.')));
-      return;
-    }
+    if (name.text.trim().isEmpty || phone.text.trim().length < 7) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name and a valid phone number are required.'))); return; }
     Navigator.pop(context, Contact(id: widget.c?.id ?? DateTime.now().microsecondsSinceEpoch.toString(), name: name.text.trim(), phone: phone.text.trim(), note: note.text.trim(), fav: widget.c?.fav ?? false));
   }
 }
@@ -498,7 +412,11 @@ class _JobFormState extends State<JobForm> {
   late final name = TextEditingController(text: widget.job?.contactId == null ? widget.job?.name ?? '' : '');
   late final msg = TextEditingController(text: widget.job?.text ?? '');
   late DateTime time = widget.job?.time ?? DateTime.now().add(const Duration(minutes: 30));
+  String spacing = 'once';
+  int copies = 1;
   Contact? get contact { for (final x in widget.contacts) { if (x.id == id) return x; } return null; }
+  bool get editing => widget.job != null;
+
   @override
   Widget build(BuildContext c) => Sheet(children: [
     Text(widget.job == null ? 'Schedule text' : 'Edit schedule', style: head), gap,
@@ -509,34 +427,38 @@ class _JobFormState extends State<JobForm> {
     gap,
     Row(children: [Expanded(child: OutlinedButton.icon(onPressed: pickDate, icon: const Icon(Icons.calendar_today), label: Text(_d(time)))), const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: pickTime, icon: const Icon(Icons.access_time), label: Text(_t(time))))]),
     gap,
-    const Text('Testing shortcuts', style: TextStyle(fontWeight: FontWeight.bold)),
+    const Text('Quick test time', style: TextStyle(fontWeight: FontWeight.bold)),
     const SizedBox(height: 6),
-    Wrap(spacing: 8, runSpacing: 8, children: [
-      ActionChip(label: const Text('+15 sec'), avatar: const Icon(Icons.timer, size: 18), onPressed: () => quickDelay(15)),
-      ActionChip(label: const Text('+30 sec'), avatar: const Icon(Icons.timer, size: 18), onPressed: () => quickDelay(30)),
-      ActionChip(label: const Text('+60 sec'), avatar: const Icon(Icons.timer, size: 18), onPressed: () => quickDelay(60)),
-      ActionChip(label: const Text('+5 min'), avatar: const Icon(Icons.schedule, size: 18), onPressed: () => quickDelay(300)),
-    ]),
+    Wrap(spacing: 8, runSpacing: 8, children: [ActionChip(label: const Text('+15 sec'), avatar: const Icon(Icons.timer, size: 18), onPressed: () => quickDelay(15)), ActionChip(label: const Text('+30 sec'), avatar: const Icon(Icons.timer, size: 18), onPressed: () => quickDelay(30)), ActionChip(label: const Text('+60 sec'), avatar: const Icon(Icons.timer, size: 18), onPressed: () => quickDelay(60)), ActionChip(label: const Text('+5 min'), avatar: const Icon(Icons.schedule, size: 18), onPressed: () => quickDelay(300))]),
+    if (!editing) ...[
+      gap,
+      DropdownButtonFormField<String>(initialValue: spacing, decoration: const InputDecoration(labelText: 'Create more visible sends'), items: spacingOptions.map((item) => DropdownMenuItem(value: item, child: Text(spacingLabel(item)))).toList(), onChanged: (value) => setState(() { spacing = value ?? 'once'; if (spacing == 'once') copies = 1; })),
+      gap,
+      DropdownButtonFormField<int>(initialValue: copies, decoration: const InputDecoration(labelText: 'How many sends to create'), items: [1, 2, 3, 5, 10].map((n) => DropdownMenuItem(value: n, child: Text('$n send${n == 1 ? '' : 's'}'))).toList(), onChanged: spacing == 'once' ? null : (value) => setState(() => copies = value ?? 1)),
+      if (spacing.startsWith('test')) const Padding(padding: EdgeInsets.only(top: 8), child: Text('Testing spacing is capped to 3 visible sends.', style: TextStyle(color: Colors.black54))),
+    ],
     gap,
     Text('Selected: ${_d(time)} ${_t(time)}', style: const TextStyle(color: Colors.black54)),
     gap,
-    FilledButton(onPressed: saveJob, child: const Text('Save schedule'))
+    FilledButton(onPressed: saveJob, child: Text(editing ? 'Save schedule' : 'Create schedule'))
   ]);
+
   void quickDelay(int seconds) => setState(() => time = DateTime.now().add(Duration(seconds: seconds)));
   Future<void> pickDate() async { final p = await showDatePicker(context: context, initialDate: time, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 730))); if (p != null) setState(() => time = DateTime(p.year, p.month, p.day, time.hour, time.minute)); }
   Future<void> pickTime() async { final p = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(time)); if (p != null) setState(() => time = DateTime(time.year, time.month, time.day, p.hour, p.minute)); }
   void saveJob() {
     final c = contact;
     final chosenPhone = c?.phone ?? phone.text.trim();
-    if (chosenPhone.length < 7 || msg.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Choose a contact or phone, and enter a message.')));
-      return;
+    if (chosenPhone.length < 7 || msg.text.trim().isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Choose a contact or phone, and enter a message.'))); return; }
+    if (!time.isAfter(DateTime.now())) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Choose a future date and time.'))); return; }
+    final baseName = c?.name ?? (name.text.trim().isEmpty ? chosenPhone : name.text.trim());
+    final count = editing ? 1 : cappedCopies(spacing, copies);
+    final seed = DateTime.now().microsecondsSinceEpoch.toString();
+    final created = <Job>[];
+    for (var i = 0; i < count; i++) {
+      created.add(Job(id: i == 0 ? widget.job?.id ?? seed : '$seed-$i', contactId: c?.id, name: count == 1 ? baseName : '$baseName (${i + 1}/$count)', phone: chosenPhone, text: msg.text.trim(), time: spacedTime(time, spacing, i), status: Status.scheduled));
     }
-    if (!time.isAfter(DateTime.now())) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Choose a future date and time.')));
-      return;
-    }
-    Navigator.pop(context, Job(id: widget.job?.id ?? DateTime.now().microsecondsSinceEpoch.toString(), contactId: c?.id, name: c?.name ?? (name.text.trim().isEmpty ? chosenPhone : name.text.trim()), phone: chosenPhone, text: msg.text.trim(), time: time, status: Status.scheduled));
+    Navigator.pop(context, created);
   }
 }
 
@@ -568,11 +490,7 @@ class Page extends StatelessWidget {
   final IconData? icon;
   final String? subtitle;
   @override
-  Widget build(BuildContext c) => Scaffold(
-    appBar: AppBar(title: Text(title)),
-    floatingActionButton: fab == null ? null : FloatingActionButton.extended(onPressed: fab, icon: const Icon(Icons.add), label: const Text('Add')),
-    body: ListView(padding: const EdgeInsets.all(18), children: [if (subtitle != null) HeroPanel(title: title, subtitle: subtitle!, icon: icon ?? Icons.apps), if (subtitle != null) gap, ...children]),
-  );
+  Widget build(BuildContext c) => Scaffold(appBar: AppBar(title: Text(title)), floatingActionButton: fab == null ? null : FloatingActionButton.extended(onPressed: fab, icon: const Icon(Icons.add), label: const Text('Add')), body: ListView(padding: const EdgeInsets.all(18), children: [if (subtitle != null) HeroPanel(title: title, subtitle: subtitle!, icon: icon ?? Icons.apps), if (subtitle != null) gap, ...children]));
 }
 
 class HeroPanel extends StatelessWidget {
@@ -587,7 +505,11 @@ class HeroPanel extends StatelessWidget {
 class Sheet extends StatelessWidget { const Sheet({super.key, required this.children}); final List<Widget> children; @override Widget build(BuildContext c) => Padding(padding: EdgeInsets.fromLTRB(18, 18, 18, MediaQuery.of(c).viewInsets.bottom + 18), child: ListView(shrinkWrap: true, children: children)); }
 const gap = SizedBox(height: 12);
 const head = TextStyle(fontSize: 24, fontWeight: FontWeight.bold);
+const spacingOptions = ['once', 'test15', 'test30', 'test60', 'daily', 'weekly', 'monthly'];
 String _d(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 String _t(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 bool sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 String monthName(int month) => const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month - 1];
+String spacingLabel(String spacing) => switch (spacing) { 'test15' => '15 seconds apart (test)', 'test30' => '30 seconds apart (test)', 'test60' => '60 seconds apart (test)', 'daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly', _ => 'Once' };
+int cappedCopies(String spacing, int copies) => spacing == 'once' ? 1 : spacing.startsWith('test') ? copies.clamp(1, 3) : copies.clamp(1, 10);
+DateTime spacedTime(DateTime start, String spacing, int index) => switch (spacing) { 'test15' => start.add(Duration(seconds: 15 * index)), 'test30' => start.add(Duration(seconds: 30 * index)), 'test60' => start.add(Duration(seconds: 60 * index)), 'daily' => start.add(Duration(days: index)), 'weekly' => start.add(Duration(days: 7 * index)), 'monthly' => DateTime(start.year, start.month + index, start.day, start.hour, start.minute), _ => start };
