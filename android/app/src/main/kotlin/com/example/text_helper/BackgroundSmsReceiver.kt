@@ -1,7 +1,6 @@
-﻿package com.example.text_helper
+package com.example.text_helper
 
 import android.Manifest
-import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -9,37 +8,44 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.telephony.SmsManager
+import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 
 class BackgroundSmsReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        val phoneNumber = intent.getStringExtra("phoneNumber") ?: return
-        val message = intent.getStringExtra("message") ?: return
-        val reminderId = intent.getStringExtra("reminderId") ?: return
-        val contactId = intent.getStringExtra("contactId") ?: ""
-        val scheduledAtMillis = intent.getLongExtra("scheduledAtMillis", System.currentTimeMillis())
-        val recurrenceRule = intent.getStringExtra("recurrenceRule") ?: "once"
+    companion object {
+        private const val tag = "BackgroundSmsReceiver"
+    }
 
-        SmsStatusStore.writeTimelineEvent(
-            context = context,
-            reminderId = reminderId,
-            phoneNumber = phoneNumber,
-            message = message,
-            status = "triggered",
-            title = "Triggered",
-            detail = "Background alarm triggered send attempt."
-        )
+    override fun onReceive(context: Context, intent: Intent) {
+        val phoneNumber = intent.getStringExtra("phoneNumber") ?: ""
+        val message = intent.getStringExtra("message") ?: ""
+        val reminderId = intent.getStringExtra("reminderId") ?: intent.getStringExtra("alarmId") ?: "unknown"
+        val contactId = intent.getStringExtra("contactId") ?: ""
+
+        Log.i(tag, "Triggered reminderId=$reminderId phone=$phoneNumber messageLength=${message.length}")
+        SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "triggered", "Triggered", "Background alarm fired.")
+
+        if (phoneNumber.isBlank() || message.isBlank()) {
+            val reason = "Missing phone number or message"
+            Log.w(tag, "Blocked reminderId=$reminderId reason=$reason")
+            writeSendLog(context, reminderId, phoneNumber, message, "blocked", reason)
+            SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "blocked", "Blocked", reason)
+            return
+        }
 
         if (!hasSendSmsPermission(context)) {
-            writeSendLog(context, reminderId, phoneNumber, message, "failed", "SMS permission missing")
-            SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "failed", "Failed", "SMS permission missing")
+            val reason = "SMS permission missing"
+            Log.w(tag, "Failed reminderId=$reminderId reason=$reason")
+            writeSendLog(context, reminderId, phoneNumber, message, "failed", reason)
+            SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "failed", "Failed", reason)
             return
         }
 
         val doNotSendReason = doNotSendBlockReason(context, contactId)
         if (doNotSendReason != null) {
+            Log.w(tag, "Blocked reminderId=$reminderId reason=$doNotSendReason")
             writeSendLog(context, reminderId, phoneNumber, message, "blocked", doNotSendReason)
             SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "blocked", "Blocked", doNotSendReason)
             return
@@ -47,18 +53,15 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
 
         val rateLimitReason = rateLimitBlockReason(context)
         if (rateLimitReason != null) {
+            Log.w(tag, "Blocked reminderId=$reminderId reason=$rateLimitReason")
             writeSendLog(context, reminderId, phoneNumber, message, "blocked", rateLimitReason)
             SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "blocked", "Blocked", rateLimitReason)
             return
         }
 
-        val duplicateReason = duplicateBlockReason(
-            context = context,
-            reminderId = reminderId,
-            phoneNumber = phoneNumber,
-            message = message
-        )
+        val duplicateReason = duplicateReminderBlockReason(context, reminderId)
         if (duplicateReason != null) {
+            Log.w(tag, "Blocked reminderId=$reminderId reason=$duplicateReason")
             writeSendLog(context, reminderId, phoneNumber, message, "blocked", duplicateReason)
             SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "blocked", "Blocked", duplicateReason)
             return
@@ -66,36 +69,14 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
 
         try {
             sendSms(context, reminderId, phoneNumber, message)
-            markReminderSent(context, reminderId)
             writeSendLog(context, reminderId, phoneNumber, message, "sent", null)
-
-            if (recurrenceRule != "once") {
-                createNextRecurringReminderAndAlarm(
-                    context = context,
-                    originalIntent = intent,
-                    currentScheduledAtMillis = scheduledAtMillis,
-                    recurrenceRule = recurrenceRule
-                )
-            }
+            SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "sent", "Sent", "SMS handed to Android SmsManager.")
+            Log.i(tag, "Sent reminderId=$reminderId phone=$phoneNumber")
         } catch (error: Exception) {
-            writeSendLog(
-                context = context,
-                reminderId = reminderId,
-                phoneNumber = phoneNumber,
-                message = message,
-                status = "failed",
-                error = error.message ?: "Unknown send error"
-            )
-
-            SmsStatusStore.writeTimelineEvent(
-                context = context,
-                reminderId = reminderId,
-                phoneNumber = phoneNumber,
-                message = message,
-                status = "failed",
-                title = "Failed",
-                detail = error.message ?: "Unknown send error"
-            )
+            val reason = error.message ?: "Unknown send error"
+            Log.e(tag, "Failed reminderId=$reminderId reason=$reason", error)
+            writeSendLog(context, reminderId, phoneNumber, message, "failed", reason)
+            SmsStatusStore.writeTimelineEvent(context, reminderId, phoneNumber, message, "failed", "Failed", reason)
         }
     }
 
@@ -107,59 +88,21 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun sendSms(
-        context: Context,
-        reminderId: String,
-        phoneNumber: String,
-        message: String
-    ) {
+    private fun sendSms(context: Context, reminderId: String, phoneNumber: String, message: String) {
         val smsManager = SmsManager.getDefault()
         val parts = smsManager.divideMessage(message)
         val sentIntents = ArrayList<PendingIntent>()
         val deliveredIntents = ArrayList<PendingIntent>()
 
         for (index in parts.indices) {
-            sentIntents.add(
-                createSmsStatusPendingIntent(
-                    context = context,
-                    receiverClass = SmsSentReceiver::class.java,
-                    reminderId = reminderId,
-                    phoneNumber = phoneNumber,
-                    message = message,
-                    partIndex = index,
-                    event = "sent"
-                )
-            )
-
-            deliveredIntents.add(
-                createSmsStatusPendingIntent(
-                    context = context,
-                    receiverClass = SmsDeliveredReceiver::class.java,
-                    reminderId = reminderId,
-                    phoneNumber = phoneNumber,
-                    message = message,
-                    partIndex = index,
-                    event = "delivered"
-                )
-            )
+            sentIntents.add(createSmsStatusPendingIntent(context, SmsSentReceiver::class.java, reminderId, phoneNumber, message, index, "sent"))
+            deliveredIntents.add(createSmsStatusPendingIntent(context, SmsDeliveredReceiver::class.java, reminderId, phoneNumber, message, index, "delivered"))
         }
 
         if (parts.size > 1) {
-            smsManager.sendMultipartTextMessage(
-                phoneNumber,
-                null,
-                parts,
-                sentIntents,
-                deliveredIntents
-            )
+            smsManager.sendMultipartTextMessage(phoneNumber, null, parts, sentIntents, deliveredIntents)
         } else {
-            smsManager.sendTextMessage(
-                phoneNumber,
-                null,
-                message,
-                sentIntents.firstOrNull(),
-                deliveredIntents.firstOrNull()
-            )
+            smsManager.sendTextMessage(phoneNumber, null, message, sentIntents.firstOrNull(), deliveredIntents.firstOrNull())
         }
     }
 
@@ -188,32 +131,23 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
         )
     }
 
-    private fun flutterPrefs(context: Context) =
-        context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+    private fun flutterPrefs(context: Context) = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
 
     private fun nowIso(): String = Instant.now().toString()
 
     private fun doNotSendBlockReason(context: Context, contactId: String): String? {
-        if (contactId.isBlank()) {
-            return null
-        }
+        if (contactId.isBlank()) return null
 
-        val prefs = flutterPrefs(context)
-        val raw = prefs.getString("flutter.text_helper_contact_groups", "[]") ?: "[]"
+        val raw = flutterPrefs(context).getString("flutter.text_helper_contact_groups", "[]") ?: "[]"
         val groups = JSONArray(raw)
 
         for (index in 0 until groups.length()) {
             val group = groups.optJSONObject(index) ?: continue
-            if (!group.optBoolean("isBlockedGroup", false)) {
-                continue
-            }
-
+            if (!group.optBoolean("isBlockedGroup", false)) continue
             val contactIds = group.optJSONArray("contactIds") ?: continue
-
             for (contactIndex in 0 until contactIds.length()) {
                 if (contactIds.optString(contactIndex) == contactId) {
-                    val name = group.optString("name", "Do Not Send")
-                    return "Blocked: contact is in Do Not Send group \"$name\"."
+                    return "Blocked: contact is in Do Not Send group \"${group.optString("name", "Do Not Send")}\"."
                 }
             }
         }
@@ -222,136 +156,51 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
     }
 
     private fun rateLimitBlockReason(context: Context): String? {
-        val prefs = flutterPrefs(context)
-        val raw = prefs.getString("flutter.text_helper_send_log", "[]") ?: "[]"
+        val raw = flutterPrefs(context).getString("flutter.text_helper_send_log", "[]") ?: "[]"
         val array = JSONArray(raw)
         val now = System.currentTimeMillis()
-
         var sentMinute = 0
         var sentHour = 0
         var sentDay = 0
 
         for (index in 0 until array.length()) {
             val item = array.optJSONObject(index) ?: continue
-            if (item.optString("status") != "sent") {
-                continue
-            }
-
-            val createdAt = item.optString("createdAt")
+            if (item.optString("status") != "sent") continue
             val createdMillis = try {
-                Instant.parse(createdAt).toEpochMilli()
+                Instant.parse(item.optString("createdAt")).toEpochMilli()
             } catch (_: Exception) {
                 0L
             }
-
-            if (createdMillis <= 0L) {
-                continue
-            }
-
-            if (createdMillis >= now - 60_000L) {
-                sentMinute += 1
-            }
-
-            if (createdMillis >= now - 3_600_000L) {
-                sentHour += 1
-            }
-
-            if (createdMillis >= now - 86_400_000L) {
-                sentDay += 1
-            }
+            if (createdMillis >= now - 60_000L) sentMinute += 1
+            if (createdMillis >= now - 3_600_000L) sentHour += 1
+            if (createdMillis >= now - 86_400_000L) sentDay += 1
         }
 
-        if (sentMinute >= 3) {
-            return "Rate limit hit: too many sends in the last minute."
-        }
-
-        if (sentHour >= 30) {
-            return "Rate limit hit: too many sends in the last hour."
-        }
-
-        if (sentDay >= 100) {
-            return "Rate limit hit: too many sends in the last day."
-        }
-
+        if (sentMinute >= 3) return "Rate limit hit: too many sends in the last minute."
+        if (sentHour >= 30) return "Rate limit hit: too many sends in the last hour."
+        if (sentDay >= 100) return "Rate limit hit: too many sends in the last day."
         return null
     }
 
-    private fun duplicateBlockReason(
-        context: Context,
-        reminderId: String,
-        phoneNumber: String,
-        message: String
-    ): String? {
-        val prefs = flutterPrefs(context)
-        val raw = prefs.getString("flutter.text_helper_send_log", "[]") ?: "[]"
+    private fun duplicateReminderBlockReason(context: Context, reminderId: String): String? {
+        val raw = flutterPrefs(context).getString("flutter.text_helper_send_log", "[]") ?: "[]"
         val array = JSONArray(raw)
-        val cutoff = System.currentTimeMillis() - 86_400_000L
 
         for (index in 0 until array.length()) {
             val item = array.optJSONObject(index) ?: continue
-            if (item.optString("status") != "sent") {
-                continue
-            }
-
+            if (item.optString("status") != "sent") continue
             if (item.optString("reminderId") == reminderId) {
                 return "This reminder ID has already been sent."
             }
         }
 
-        for (index in 0 until array.length()) {
-            val item = array.optJSONObject(index) ?: continue
-            if (item.optString("status") != "sent") {
-                continue
-            }
-
-            val sameNumber = item.optString("phoneNumber") == phoneNumber
-            val sameMessage = item.optString("message").trim() == message.trim()
-            val createdAt = item.optString("createdAt")
-            val createdMillis = try {
-                Instant.parse(createdAt).toEpochMilli()
-            } catch (_: Exception) {
-                0L
-            }
-
-            if (sameNumber && sameMessage && createdMillis >= cutoff) {
-                return "Same number and message already sent in the last 24 hours."
-            }
-        }
-
         return null
     }
 
-    private fun markReminderSent(context: Context, reminderId: String) {
-        val prefs = flutterPrefs(context)
-        val key = "flutter.text_helper_appointment_reminders"
-        val raw = prefs.getString(key, "[]") ?: "[]"
-        val array = JSONArray(raw)
-
-        for (index in 0 until array.length()) {
-            val item = array.optJSONObject(index) ?: continue
-            if (item.optString("id") == reminderId) {
-                item.put("isSent", true)
-                item.put("sentAt", nowIso())
-                array.put(index, item)
-                break
-            }
-        }
-
-        prefs.edit().putString(key, array.toString()).apply()
-    }
-
-    private fun writeSendLog(
-        context: Context,
-        reminderId: String,
-        phoneNumber: String,
-        message: String,
-        status: String,
-        error: String?
-    ) {
+    private fun writeSendLog(context: Context, reminderId: String, phoneNumber: String, message: String, status: String, error: String?) {
         val prefs = flutterPrefs(context)
         val key = "flutter.text_helper_send_log"
-        val raw = prefs.getString(key, "[]") ?: "[]"
-        val oldArray = JSONArray(raw)
+        val oldArray = JSONArray(prefs.getString(key, "[]") ?: "[]")
         val newArray = JSONArray()
 
         val log = JSONObject()
@@ -364,106 +213,11 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
         log.put("reminderId", reminderId)
 
         newArray.put(log)
-
         val max = minOf(oldArray.length(), 499)
         for (index in 0 until max) {
             newArray.put(oldArray.get(index))
         }
 
         prefs.edit().putString(key, newArray.toString()).apply()
-    }
-
-    private fun createNextRecurringReminderAndAlarm(
-        context: Context,
-        originalIntent: Intent,
-        currentScheduledAtMillis: Long,
-        recurrenceRule: String
-    ) {
-        var nextMillis = nextSchedule(currentScheduledAtMillis, recurrenceRule)
-        val now = System.currentTimeMillis()
-
-        while (nextMillis <= now) {
-            nextMillis = nextSchedule(nextMillis, recurrenceRule)
-        }
-
-        val oldReminderId = originalIntent.getStringExtra("reminderId") ?: return
-        val newReminderId = "$oldReminderId-next-${System.currentTimeMillis()}"
-
-        val prefs = flutterPrefs(context)
-        val key = "flutter.text_helper_appointment_reminders"
-        val raw = prefs.getString(key, "[]") ?: "[]"
-        val array = JSONArray(raw)
-
-        val next = JSONObject()
-        next.put("id", newReminderId)
-        next.put("contactId", originalIntent.getStringExtra("contactId") ?: "")
-        next.put("phoneNumber", originalIntent.getStringExtra("phoneNumber") ?: "")
-        next.put("appointmentTitle", originalIntent.getStringExtra("appointmentTitle") ?: "Appointment")
-        next.put("location", originalIntent.getStringExtra("location") ?: "")
-        next.put("message", originalIntent.getStringExtra("message") ?: "")
-        next.put("scheduledAt", Instant.ofEpochMilli(nextMillis).toString())
-        next.put("isSent", false)
-        next.put("recurrenceRule", recurrenceRule)
-        next.put("templateName", originalIntent.getStringExtra("templateName") ?: "Custom")
-        next.put("sentAt", JSONObject.NULL)
-        next.put("notes", originalIntent.getStringExtra("notes") ?: "")
-
-        array.put(next)
-        prefs.edit().putString(key, array.toString()).apply()
-
-        val alarmIntent = Intent(context, BackgroundSmsReceiver::class.java).apply {
-            putExtra("alarmId", newReminderId)
-            putExtra("reminderId", newReminderId)
-            putExtra("contactId", originalIntent.getStringExtra("contactId") ?: "")
-            putExtra("phoneNumber", originalIntent.getStringExtra("phoneNumber") ?: "")
-            putExtra("appointmentTitle", originalIntent.getStringExtra("appointmentTitle") ?: "Appointment")
-            putExtra("location", originalIntent.getStringExtra("location") ?: "")
-            putExtra("message", originalIntent.getStringExtra("message") ?: "")
-            putExtra("scheduledAtMillis", nextMillis)
-            putExtra("recurrenceRule", recurrenceRule)
-            putExtra("templateName", originalIntent.getStringExtra("templateName") ?: "Custom")
-            putExtra("notes", originalIntent.getStringExtra("notes") ?: "")
-        }
-
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            newReminderId.hashCode(),
-            alarmIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val alarmManager = context.getSystemService(AlarmManager::class.java)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    nextMillis,
-                    pendingIntent
-                )
-            } else {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    nextMillis,
-                    pendingIntent
-                )
-            }
-        } else {
-            alarmManager.setExact(
-                AlarmManager.RTC_WAKEUP,
-                nextMillis,
-                pendingIntent
-            )
-        }
-    }
-
-    private fun nextSchedule(currentMillis: Long, rule: String): Long {
-        return when (rule) {
-            "everyMinute" -> currentMillis + 60_000L
-            "daily" -> currentMillis + 86_400_000L
-            "weekly" -> currentMillis + 604_800_000L
-            "monthly" -> currentMillis + 2_592_000_000L
-            else -> currentMillis
-        }
     }
 }
