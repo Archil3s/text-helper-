@@ -76,7 +76,7 @@ class NativeLogEvent {
   factory NativeLogEvent.fromTimeline(Map<String, dynamic> j) => NativeLogEvent(
         title: j['title'] as String? ?? j['status'] as String? ?? 'Event',
         status: j['status'] as String? ?? 'event',
-        detail: j['detail'] as String? ?? '',
+        detail: j['detail'] as String? ?? j['errorMessage'] as String? ?? '',
         phone: j['phoneNumber'] as String? ?? '',
         reminderId: j['reminderId'] as String? ?? '',
         createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
@@ -420,7 +420,7 @@ class _SchedulePageState extends State<SchedulePage> {
         const SizedBox(height: 8),
         Text(j.text),
         const SizedBox(height: 12),
-        Wrap(spacing: 8, runSpacing: 8, children: [FilledButton.tonalIcon(onPressed: j.status == Status.scheduled ? () => widget.onOpen(j) : null, icon: const Icon(Icons.sms), label: const Text('Open SMS')), OutlinedButton(onPressed: () => widget.onEdit(j), child: const Text('Edit')), OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onSent(j) : null, child: const Text('Sent')), OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onCancel(j), child: const Text('Cancel'))])
+        Wrap(spacing: 8, runSpacing: 8, children: [FilledButton.tonalIcon(onPressed: j.status == Status.scheduled ? () => widget.onOpen(j) : null, icon: const Icon(Icons.sms), label: const Text('Open SMS')), OutlinedButton(onPressed: () => widget.onEdit(j), child: const Text('Edit')), OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onSent(j) : null, child: const Text('Sent')), OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onCancel(j) : null, child: const Text('Cancel'))])
       ]))))
     ]);
   }
