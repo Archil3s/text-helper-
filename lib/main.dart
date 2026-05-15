@@ -21,7 +21,7 @@ class TextHelperApp extends StatelessWidget {
         colorScheme: scheme,
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF6F7FB),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 0,
           margin: const EdgeInsets.only(bottom: 12),
           color: Colors.white,
@@ -46,15 +46,15 @@ class TextHelperApp extends StatelessWidget {
 enum Status { scheduled, sent, cancelled }
 
 class Contact {
-  Contact({required this.id, required this.name, required this.phone, this.note = '', this.fav = false});
+  const Contact({required this.id, required this.name, required this.phone, this.note = '', this.fav = false});
   final String id;
   final String name;
   final String phone;
   final String note;
   final bool fav;
 
-  Contact copy({String? id, String? name, String? phone, String? note, bool? fav}) => Contact(
-        id: id ?? this.id,
+  Contact copy({String? name, String? phone, String? note, bool? fav}) => Contact(
+        id: id,
         name: name ?? this.name,
         phone: phone ?? this.phone,
         note: note ?? this.note,
@@ -63,17 +63,17 @@ class Contact {
 
   Map<String, dynamic> toJson() => {'id': id, 'name': name, 'phone': phone, 'note': note, 'fav': fav};
 
-  factory Contact.fromJson(Map<String, dynamic> j) => Contact(
-        id: j['id'] as String,
-        name: j['name'] as String? ?? '',
-        phone: j['phone'] as String? ?? '',
-        note: j['note'] as String? ?? '',
-        fav: j['fav'] as bool? ?? false,
+  factory Contact.fromJson(Map<String, dynamic> json) => Contact(
+        id: json['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        name: json['name'] as String? ?? '',
+        phone: json['phone'] as String? ?? '',
+        note: json['note'] as String? ?? '',
+        fav: json['fav'] as bool? ?? false,
       );
 }
 
 class Job {
-  Job({required this.id, this.contactId, required this.name, required this.phone, required this.text, required this.time, this.status = Status.scheduled});
+  const Job({required this.id, this.contactId, required this.name, required this.phone, required this.text, required this.time, this.status = Status.scheduled});
   final String id;
   final String? contactId;
   final String name;
@@ -84,9 +84,9 @@ class Job {
 
   bool get due => !time.isAfter(DateTime.now());
 
-  Job copy({String? id, String? contactId, String? name, String? phone, String? text, DateTime? time, Status? status}) => Job(
-        id: id ?? this.id,
-        contactId: contactId ?? this.contactId,
+  Job copy({String? name, String? phone, String? text, DateTime? time, Status? status}) => Job(
+        id: id,
+        contactId: contactId,
         name: name ?? this.name,
         phone: phone ?? this.phone,
         text: text ?? this.text,
@@ -104,56 +104,48 @@ class Job {
         'status': status.name,
       };
 
-  factory Job.fromJson(Map<String, dynamic> j) => Job(
-        id: j['id'] as String,
-        contactId: j['contactId'] as String?,
-        name: j['name'] as String? ?? '',
-        phone: j['phone'] as String? ?? '',
-        text: j['text'] as String? ?? '',
-        time: DateTime.tryParse(j['time'] as String? ?? '') ?? DateTime.now(),
-        status: Status.values.firstWhere((s) => s.name == j['status'], orElse: () => Status.scheduled),
+  factory Job.fromJson(Map<String, dynamic> json) => Job(
+        id: json['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        contactId: json['contactId'] as String?,
+        name: json['name'] as String? ?? '',
+        phone: json['phone'] as String? ?? '',
+        text: json['text'] as String? ?? '',
+        time: DateTime.tryParse(json['time'] as String? ?? '') ?? DateTime.now(),
+        status: Status.values.firstWhere((s) => s.name == json['status'], orElse: () => Status.scheduled),
       );
 }
 
 class NativeLogEvent {
-  NativeLogEvent({required this.title, required this.status, required this.detail, required this.phone, required this.reminderId, required this.createdAt});
+  const NativeLogEvent({required this.title, required this.status, required this.detail, required this.phone, required this.createdAt});
   final String title;
   final String status;
   final String detail;
   final String phone;
-  final String reminderId;
   final DateTime createdAt;
 
-  factory NativeLogEvent.fromTimeline(Map<String, dynamic> j) => NativeLogEvent(
-        title: j['title'] as String? ?? j['status'] as String? ?? 'Event',
-        status: j['status'] as String? ?? 'event',
-        detail: j['detail'] as String? ?? j['errorMessage'] as String? ?? '',
-        phone: j['phoneNumber'] as String? ?? '',
-        reminderId: j['reminderId'] as String? ?? '',
-        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
-      );
-
-  factory NativeLogEvent.fromReceipt(Map<String, dynamic> j) => NativeLogEvent(
-        title: j['event'] as String? ?? 'Receipt',
-        status: j['status'] as String? ?? 'receipt',
-        detail: j['errorMessage'] as String? ?? 'Result code ${j['resultCode'] ?? ''}',
-        phone: j['phoneNumber'] as String? ?? '',
-        reminderId: j['reminderId'] as String? ?? '',
-        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
+  factory NativeLogEvent.fromJson(Map<String, dynamic> json) => NativeLogEvent(
+        title: json['title'] as String? ?? json['event'] as String? ?? json['status'] as String? ?? 'Event',
+        status: json['status'] as String? ?? 'event',
+        detail: json['detail'] as String? ?? json['errorMessage'] as String? ?? '',
+        phone: json['phoneNumber'] as String? ?? '',
+        createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
       );
 }
 
 class App extends StatefulWidget {
   const App({super.key});
+
   @override
   State<App> createState() => _AppState();
 }
 
 class _AppState extends State<App> {
   static const alarmChannel = MethodChannel('text_helper/background_alarm');
-  final contacts = <Contact>[];
-  final jobs = <Job>[];
-  final nativeEvents = <NativeLogEvent>[];
+
+  final List<Contact> contacts = [];
+  final List<Job> jobs = [];
+  final List<NativeLogEvent> nativeEvents = [];
+
   int tab = 0;
   bool loaded = false;
   bool autoSend = false;
@@ -179,23 +171,36 @@ class _AppState extends State<App> {
   }
 
   Future<void> load() async {
-    final p = await SharedPreferences.getInstance();
-    contacts.addAll((p.getStringList('contacts') ?? []).map((e) => Contact.fromJson(jsonDecode(e) as Map<String, dynamic>)));
-    jobs.addAll((p.getStringList('jobs') ?? []).map((e) => Job.fromJson(jsonDecode(e) as Map<String, dynamic>)));
-    autoSend = p.getBool('auto_send_sms') ?? false;
+    final prefs = await SharedPreferences.getInstance();
+    contacts
+      ..clear()
+      ..addAll((prefs.getStringList('contacts') ?? []).map((e) => Contact.fromJson(jsonDecode(e) as Map<String, dynamic>)));
+    jobs
+      ..clear()
+      ..addAll((prefs.getStringList('jobs') ?? []).map((e) => Job.fromJson(jsonDecode(e) as Map<String, dynamic>)));
+    jobs.sort((a, b) => a.time.compareTo(b.time));
+    autoSend = prefs.getBool('auto_send_sms') ?? false;
     await loadNativeLogs(silent: true);
     if (!mounted) return;
     setState(() => loaded = true);
     if (autoSend) await syncNativeAlarms(showResult: false);
   }
 
+  Future<void> save() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('contacts', contacts.map((e) => jsonEncode(e.toJson())).toList());
+    await prefs.setStringList('jobs', jobs.map((e) => jsonEncode(e.toJson())).toList());
+    await prefs.setBool('auto_send_sms', autoSend);
+    await syncNativeAlarms(showResult: false);
+  }
+
   Future<void> loadNativeLogs({required bool silent}) async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferences.getInstance();
       final events = <NativeLogEvent>[];
-      events.addAll(parseNativeArray(p.getString('text_helper_message_timeline_events')).map(NativeLogEvent.fromTimeline));
-      events.addAll(parseNativeArray(p.getString('text_helper_delivery_receipts')).map(NativeLogEvent.fromReceipt));
-      events.addAll(parseNativeArray(p.getString('text_helper_send_log')).map(NativeLogEvent.fromTimeline));
+      for (final key in ['text_helper_message_timeline_events', 'text_helper_delivery_receipts', 'text_helper_send_log']) {
+        events.addAll(parseNativeArray(prefs.getString(key)).map(NativeLogEvent.fromJson));
+      }
       events.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       if (!mounted) return;
       setState(() {
@@ -217,14 +222,6 @@ class _AppState extends State<App> {
     return decoded.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  Future<void> save() async {
-    final p = await SharedPreferences.getInstance();
-    await p.setStringList('contacts', contacts.map((e) => jsonEncode(e.toJson())).toList());
-    await p.setStringList('jobs', jobs.map((e) => jsonEncode(e.toJson())).toList());
-    await p.setBool('auto_send_sms', autoSend);
-    await syncNativeAlarms(showResult: false);
-  }
-
   void snack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -236,15 +233,15 @@ class _AppState extends State<App> {
     if (enabled) {
       final ok = await requestSmsPermission();
       if (!ok) {
-        snack('SMS permission is required for auto-send.');
+        snack('SMS permission is required for closed-app sending.');
         return;
       }
       final canExact = await canScheduleExactAlarms();
       if (!canExact) snack('Exact alarm permission may be needed for precise timing.');
     }
     setState(() => autoSend = enabled);
-    final p = await SharedPreferences.getInstance();
-    await p.setBool('auto_send_sms', autoSend);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('auto_send_sms', autoSend);
     await syncNativeAlarms(showResult: true);
   }
 
@@ -271,13 +268,13 @@ class _AppState extends State<App> {
     try {
       if (!autoSend) {
         await alarmChannel.invokeMethod<void>('cancelAllBackgroundAlarms');
-        lastSyncedAlarmCount = 0;
-        if (showResult) snack('Auto-send off. Alarms cancelled.');
+        if (mounted) setState(() => lastSyncedAlarmCount = 0);
+        if (showResult) snack('Closed-app sending is off.');
         return;
       }
-      final alarmCutoff = DateTime.now().subtract(const Duration(minutes: 10));
+      final cutoff = DateTime.now().subtract(const Duration(minutes: 10));
       final alarms = jobs
-          .where((j) => j.status == Status.scheduled && j.time.isAfter(alarmCutoff) && j.phone.trim().isNotEmpty && j.text.trim().isNotEmpty)
+          .where((j) => j.status == Status.scheduled && j.time.isAfter(cutoff) && j.phone.trim().isNotEmpty && j.text.trim().isNotEmpty)
           .map((j) => {
                 'alarmId': j.id,
                 'reminderId': j.id,
@@ -308,54 +305,50 @@ class _AppState extends State<App> {
       return;
     }
     try {
-      final opened = await launchUrl(
-        Uri(scheme: 'sms', path: phone.trim(), queryParameters: text.trim().isEmpty ? null : {'body': text.trim()}),
-        mode: LaunchMode.externalApplication,
-      );
+      final opened = await launchUrl(Uri(scheme: 'sms', path: phone.trim(), queryParameters: text.trim().isEmpty ? null : {'body': text.trim()}), mode: LaunchMode.externalApplication);
       if (!opened) snack('Could not open the SMS app.');
     } catch (error) {
       snack('Could not open SMS: $error');
     }
   }
 
-  Future<void> editContact([Contact? c]) async {
-    final r = await showModalBottomSheet<Contact>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => ContactForm(c));
-    if (r == null) return;
+  Future<void> editContact([Contact? contact]) async {
+    final result = await showModalBottomSheet<Contact>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => ContactForm(contact));
+    if (result == null) return;
     setState(() {
-      final i = contacts.indexWhere((x) => x.id == r.id);
-      if (i < 0) {
-        contacts.add(r);
+      final index = contacts.indexWhere((c) => c.id == result.id);
+      if (index < 0) {
+        contacts.add(result);
       } else {
-        contacts[i] = r;
-        for (var n = 0; n < jobs.length; n++) {
-          if (jobs[n].contactId == r.id && jobs[n].status == Status.scheduled) {
-            jobs[n] = jobs[n].copy(name: r.name, phone: r.phone);
+        contacts[index] = result;
+        for (var i = 0; i < jobs.length; i++) {
+          if (jobs[i].contactId == result.id && jobs[i].status == Status.scheduled) {
+            jobs[i] = jobs[i].copy(name: result.name, phone: result.phone);
           }
         }
       }
       contacts.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     });
     await save();
-    snack(c == null ? 'Contact added.' : 'Contact updated.');
+    snack(contact == null ? 'Contact added.' : 'Contact updated.');
   }
 
-  Future<void> editJob([Job? j, Contact? c]) async {
-    final result = await showModalBottomSheet<List<Job>>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => JobForm(contacts: contacts, job: j, contact: c));
+  Future<void> editJob([Job? job, Contact? contact]) async {
+    final result = await showModalBottomSheet<List<Job>>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => JobForm(contacts: contacts, job: job, contact: contact));
     if (result == null || result.isEmpty) return;
     setState(() {
-      if (j != null) jobs.removeWhere((x) => x.id == j.id);
+      if (job != null) jobs.removeWhere((j) => j.id == job.id);
       jobs.addAll(result);
       jobs.sort((a, b) => a.time.compareTo(b.time));
     });
     await save();
-    final count = result.length;
-    snack('$count scheduled send${count == 1 ? '' : 's'} saved${autoSend ? ' and synced' : ''}.');
+    snack('${result.length} scheduled send${result.length == 1 ? '' : 's'} saved${autoSend ? ' and synced' : ''}.');
   }
 
-  Future<void> toggleFavorite(Contact c) async {
-    final i = contacts.indexWhere((x) => x.id == c.id);
-    if (i < 0) return;
-    setState(() => contacts[i] = c.copy(fav: !c.fav));
+  Future<void> toggleFavorite(Contact contact) async {
+    final index = contacts.indexWhere((c) => c.id == contact.id);
+    if (index < 0) return;
+    setState(() => contacts[index] = contact.copy(fav: !contact.fav));
     await save();
   }
 
@@ -368,13 +361,13 @@ class _AppState extends State<App> {
         ContactPage(
           contacts: contacts,
           onEdit: editContact,
-          onDelete: (c) {
-            setState(() => contacts.remove(c));
+          onDelete: (contact) {
+            setState(() => contacts.remove(contact));
             save();
             snack('Contact deleted.');
           },
-          onSms: (c) => openSms(c.phone, ''),
-          onSchedule: (c) => editJob(null, c),
+          onSms: (contact) => openSms(contact.phone, ''),
+          onSchedule: (contact) => editJob(null, contact),
           onFav: toggleFavorite,
         ),
         SchedulePage(
@@ -387,14 +380,14 @@ class _AppState extends State<App> {
           onSyncAlarms: () => syncNativeAlarms(showResult: true),
           onRefreshLogs: () => loadNativeLogs(silent: false),
           onEdit: editJob,
-          onOpen: (j) => openSms(j.phone, j.text),
-          onSent: (j) {
-            setState(() => jobs[jobs.indexOf(j)] = j.copy(status: Status.sent));
+          onOpen: (job) => openSms(job.phone, job.text),
+          onSent: (job) {
+            setState(() => jobs[jobs.indexOf(job)] = job.copy(status: Status.sent));
             save();
             snack('Marked sent.');
           },
-          onCancel: (j) {
-            setState(() => jobs[jobs.indexOf(j)] = j.copy(status: Status.cancelled));
+          onCancel: (job) {
+            setState(() => jobs[jobs.indexOf(job)] = job.copy(status: Status.cancelled));
             save();
             snack('Schedule cancelled.');
           },
@@ -402,7 +395,7 @@ class _AppState extends State<App> {
       ][tab],
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
-        onDestinationSelected: (v) => setState(() => tab = v),
+        onDestinationSelected: (value) => setState(() => tab = value),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.sms_outlined), selectedIcon: Icon(Icons.sms), label: 'SMS'),
           NavigationDestination(icon: Icon(Icons.contacts_outlined), selectedIcon: Icon(Icons.contacts), label: 'Contacts'),
@@ -417,54 +410,55 @@ class SmsPage extends StatefulWidget {
   const SmsPage({super.key, required this.contacts, required this.onSms});
   final List<Contact> contacts;
   final Future<void> Function(String, String) onSms;
+
   @override
   State<SmsPage> createState() => _SmsPageState();
 }
 
 class _SmsPageState extends State<SmsPage> {
   final phone = TextEditingController();
-  final msg = TextEditingController();
-  String id = '';
+  final message = TextEditingController();
+  String contactId = '';
 
   @override
   void dispose() {
     phone.dispose();
-    msg.dispose();
+    message.dispose();
     super.dispose();
   }
 
-  Contact? get selected {
-    for (final x in widget.contacts) {
-      if (x.id == id) return x;
+  Contact? get selectedContact {
+    for (final contact in widget.contacts) {
+      if (contact.id == contactId) return contact;
     }
     return null;
   }
 
   @override
-  Widget build(BuildContext c) => AppPage(
+  Widget build(BuildContext context) => AppPage(
         title: 'SMS',
         subtitle: 'Write a message and open your SMS app when you want to review before sending.',
         icon: Icons.sms,
         children: [
           CleanCard(children: [
-            SectionHeader(icon: Icons.person_outline, title: 'Recipient', subtitle: 'Choose a saved contact or enter a number.'),
+            const SectionHeader(icon: Icons.person_outline, title: 'Recipient', subtitle: 'Choose a contact or enter a phone number.'),
             DropdownButtonFormField<String>(
-              initialValue: widget.contacts.any((x) => x.id == id) ? id : '',
-              items: [const DropdownMenuItem(value: '', child: Text('Manual number')), ...widget.contacts.map((x) => DropdownMenuItem(value: x.id, child: Text('${x.name} • ${x.phone}')))],
-              onChanged: (v) => setState(() {
-                id = v ?? '';
-                if (selected != null) phone.text = selected!.phone;
+              initialValue: widget.contacts.any((c) => c.id == contactId) ? contactId : '',
+              items: [const DropdownMenuItem(value: '', child: Text('Manual number')), ...widget.contacts.map((c) => DropdownMenuItem(value: c.id, child: Text('${c.name} • ${c.phone}')))],
+              onChanged: (value) => setState(() {
+                contactId = value ?? '';
+                if (selectedContact != null) phone.text = selectedContact!.phone;
               }),
               decoration: const InputDecoration(labelText: 'Saved contact'),
             ),
             gap,
-            TextField(controller: phone, enabled: id.isEmpty, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone number')),
+            TextField(controller: phone, enabled: contactId.isEmpty, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone number')),
           ]),
           CleanCard(children: [
-            SectionHeader(icon: Icons.edit_note, title: 'Message', subtitle: 'This opens as a draft in your SMS app.'),
-            TextField(controller: msg, maxLines: 5, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(labelText: 'Message', alignLabelWithHint: true)),
+            const SectionHeader(icon: Icons.edit_note, title: 'Message', subtitle: 'This opens as a draft in your SMS app.'),
+            TextField(controller: message, maxLines: 5, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(labelText: 'Message', alignLabelWithHint: true)),
             gap,
-            SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: () => widget.onSms(selected?.phone ?? phone.text, msg.text), icon: const Icon(Icons.open_in_new), label: const Text('Open SMS draft'))),
+            SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: () => widget.onSms(selectedContact?.phone ?? phone.text, message.text), icon: const Icon(Icons.open_in_new), label: const Text('Open SMS draft'))),
           ]),
         ],
       );
@@ -480,14 +474,14 @@ class ContactPage extends StatelessWidget {
   final Future<void> Function(Contact) onFav;
 
   @override
-  Widget build(BuildContext c) => AppPage(
+  Widget build(BuildContext context) => AppPage(
         title: 'Contacts',
         subtitle: '${contacts.length} saved contact${contacts.length == 1 ? '' : 's'}. Text now or schedule from one place.',
         icon: Icons.contacts,
         fab: () => onEdit(null),
         children: [
           if (contacts.isEmpty) const EmptyCard(icon: Icons.person_add_alt_1, title: 'No contacts yet', message: 'Tap Add to save your first contact.'),
-          ...contacts.map((x) => ContactTile(contact: x, onFav: onFav, onSms: onSms, onSchedule: onSchedule, onEdit: onEdit, onDelete: onDelete)),
+          ...contacts.map((contact) => ContactTile(contact: contact, onFav: onFav, onSms: onSms, onSchedule: onSchedule, onEdit: onEdit, onDelete: onDelete)),
         ],
       );
 }
@@ -548,6 +542,7 @@ class SchedulePage extends StatefulWidget {
   final void Function(Job) onOpen;
   final void Function(Job) onSent;
   final void Function(Job) onCancel;
+
   @override
   State<SchedulePage> createState() => _SchedulePageState();
 }
@@ -557,7 +552,7 @@ class _SchedulePageState extends State<SchedulePage> {
   DateTime? selectedDay;
 
   @override
-  Widget build(BuildContext c) {
+  Widget build(BuildContext context) {
     final sorted = [...widget.jobs]..sort((a, b) => a.time.compareTo(b.time));
     final filtered = selectedDay == null ? sorted : sorted.where((j) => sameDay(j.time, selectedDay!)).toList();
     final due = widget.jobs.where((j) => j.status == Status.scheduled && j.due).length;
@@ -567,7 +562,7 @@ class _SchedulePageState extends State<SchedulePage> {
 
     return AppPage(
       title: 'Scheduler',
-      subtitle: 'Plan texts, sync alarms, and check delivery in one place.',
+      subtitle: 'Plan texts, sync alarms, and check delivery from one screen.',
       icon: Icons.event_note,
       fab: () => widget.onEdit(null),
       children: [
@@ -595,11 +590,10 @@ class _SchedulePageState extends State<SchedulePage> {
             ),
           ],
         ),
-        if (selectedDay != null)
-          FilterChipRow(label: 'Showing ${_d(selectedDay!)}', onClear: () => setState(() => selectedDay = null)),
+        if (selectedDay != null) FilterChipRow(label: 'Showing ${_d(selectedDay!)}', onClear: () => setState(() => selectedDay = null)),
         SectionHeader(icon: Icons.schedule, title: 'Scheduled texts', subtitle: filtered.isEmpty ? 'No matching messages.' : '${filtered.length} message${filtered.length == 1 ? '' : 's'} shown'),
         if (filtered.isEmpty) const EmptyCard(icon: Icons.event_note, title: 'Nothing scheduled', message: 'Tap Add to schedule a text.'),
-        ...filtered.map((j) => JobTile(job: j, onOpen: widget.onOpen, onEdit: widget.onEdit, onSent: widget.onSent, onCancel: widget.onCancel)),
+        ...filtered.map((job) => JobTile(job: job, onOpen: widget.onOpen, onEdit: widget.onEdit, onSent: widget.onSent, onCancel: widget.onCancel)),
         ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16),
           collapsedShape: roundedShape,
@@ -609,9 +603,7 @@ class _SchedulePageState extends State<SchedulePage> {
           leading: const Icon(Icons.tune),
           title: const Text('Advanced logs', style: TextStyle(fontWeight: FontWeight.w800)),
           subtitle: const Text('Use when you need to troubleshoot sending.'),
-          children: [
-            DiagnosticsCard(autoSend: widget.autoSend, alarmCount: widget.lastSyncedAlarmCount, lastRefresh: widget.lastLogRefresh, events: widget.nativeEvents, onRefresh: widget.onRefreshLogs),
-          ],
+          children: [DiagnosticsCard(autoSend: widget.autoSend, alarmCount: widget.lastSyncedAlarmCount, lastRefresh: widget.lastLogRefresh, events: widget.nativeEvents, onRefresh: widget.onRefreshLogs)],
         ),
       ],
     );
@@ -762,15 +754,15 @@ class DiagnosticsCard extends StatelessWidget {
           if (events.isEmpty)
             const Text('No send events yet.')
           else
-            ...events.take(6).map((e) => Padding(
+            ...events.take(6).map((event) => Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Icon(iconForStatus(e.status), size: 18, color: colorForStatus(e.status)),
+                    Icon(iconForStatus(event.status), size: 18, color: colorForStatus(event.status)),
                     const SizedBox(width: 8),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('${e.title} • ${e.status}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                      Text('${_d(e.createdAt)} ${_t(e.createdAt)} ${e.phone}', style: const TextStyle(color: Colors.black54)),
-                      if (e.detail.isNotEmpty) Text(e.detail, style: const TextStyle(color: Colors.black54)),
+                      Text('${event.title} • ${event.status}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text('${_d(event.createdAt)} ${_t(event.createdAt)} ${event.phone}', style: const TextStyle(color: Colors.black54)),
+                      if (event.detail.isNotEmpty) Text(event.detail, style: const TextStyle(color: Colors.black54)),
                     ])),
                   ]),
                 )),
@@ -793,6 +785,7 @@ class SchedulerCalendar extends StatelessWidget {
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final leadingBlanks = first.weekday - 1;
     final cellCount = leadingBlanks + daysInMonth;
+    final weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
       child: Column(children: [
@@ -801,7 +794,7 @@ class SchedulerCalendar extends StatelessWidget {
           Expanded(child: Center(child: Text('${monthName(month.month)} ${month.year}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)))),
           IconButton(onPressed: onNext, icon: const Icon(Icons.chevron_right)),
         ]),
-        const Row(children: [for (final d in ['M', 'T', 'W', 'T', 'F', 'S', 'S']) Expanded(child: Center(child: Text(d, style: TextStyle(fontWeight: FontWeight.bold))))]),
+        Row(children: weekdays.map((day) => Expanded(child: Center(child: Text(day, style: const TextStyle(fontWeight: FontWeight.bold))))).toList()),
         const SizedBox(height: 8),
         GridView.builder(
           shrinkWrap: true,
@@ -838,20 +831,21 @@ class SchedulerCalendar extends StatelessWidget {
 }
 
 class ContactForm extends StatefulWidget {
-  const ContactForm(this.c, {super.key});
-  final Contact? c;
+  const ContactForm(this.contact, {super.key});
+  final Contact? contact;
+
   @override
   State<ContactForm> createState() => _ContactFormState();
 }
 
 class _ContactFormState extends State<ContactForm> {
-  late final name = TextEditingController(text: widget.c?.name ?? '');
-  late final phone = TextEditingController(text: widget.c?.phone ?? '');
-  late final note = TextEditingController(text: widget.c?.note ?? '');
+  late final name = TextEditingController(text: widget.contact?.name ?? '');
+  late final phone = TextEditingController(text: widget.contact?.phone ?? '');
+  late final note = TextEditingController(text: widget.contact?.note ?? '');
 
   @override
-  Widget build(BuildContext c) => Sheet(children: [
-        Text(widget.c == null ? 'Add contact' : 'Edit contact', style: head),
+  Widget build(BuildContext context) => Sheet(children: [
+        Text(widget.contact == null ? 'Add contact' : 'Edit contact', style: head),
         gap,
         TextField(controller: name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Name')),
         gap,
@@ -867,7 +861,7 @@ class _ContactFormState extends State<ContactForm> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name and a valid phone number are required.')));
       return;
     }
-    Navigator.pop(context, Contact(id: widget.c?.id ?? DateTime.now().microsecondsSinceEpoch.toString(), name: name.text.trim(), phone: phone.text.trim(), note: note.text.trim(), fav: widget.c?.fav ?? false));
+    Navigator.pop(context, Contact(id: widget.contact?.id ?? DateTime.now().microsecondsSinceEpoch.toString(), name: name.text.trim(), phone: phone.text.trim(), note: note.text.trim(), fav: widget.contact?.fav ?? false));
   }
 }
 
@@ -876,22 +870,23 @@ class JobForm extends StatefulWidget {
   final List<Contact> contacts;
   final Job? job;
   final Contact? contact;
+
   @override
   State<JobForm> createState() => _JobFormState();
 }
 
 class _JobFormState extends State<JobForm> {
-  late String id = widget.job?.contactId ?? widget.contact?.id ?? '';
+  late String contactId = widget.job?.contactId ?? widget.contact?.id ?? '';
   late final phone = TextEditingController(text: widget.job?.contactId == null ? widget.job?.phone ?? '' : '');
   late final name = TextEditingController(text: widget.job?.contactId == null ? widget.job?.name ?? '' : '');
-  late final msg = TextEditingController(text: widget.job?.text ?? '');
+  late final message = TextEditingController(text: widget.job?.text ?? '');
   late DateTime time = widget.job?.time ?? DateTime.now().add(const Duration(minutes: 30));
   String spacing = 'once';
   int copies = 1;
 
-  Contact? get contact {
-    for (final x in widget.contacts) {
-      if (x.id == id) return x;
+  Contact? get selectedContact {
+    for (final contact in widget.contacts) {
+      if (contact.id == contactId) return contact;
     }
     return null;
   }
@@ -900,20 +895,20 @@ class _JobFormState extends State<JobForm> {
   int get previewCount => editing ? 1 : cappedCopies(spacing, copies);
 
   @override
-  Widget build(BuildContext c) => Sheet(children: [
+  Widget build(BuildContext context) => Sheet(children: [
         Text(editing ? 'Edit schedule' : 'Schedule text', style: head),
         const SizedBox(height: 4),
-        const Text('Simple setup first. Testing and repeats are tucked under Advanced.', style: TextStyle(color: Colors.black54)),
+        const Text('Simple setup first. Testing and repeats are under Advanced.', style: TextStyle(color: Colors.black54)),
         gap,
         CleanCard(children: [
-          SectionHeader(icon: Icons.person_outline, title: 'Who gets it?', subtitle: 'Choose a contact or use a custom number.'),
+          const SectionHeader(icon: Icons.person_outline, title: 'Who gets it?', subtitle: 'Choose a contact or use a custom number.'),
           DropdownButtonFormField<String>(
-            initialValue: widget.contacts.any((x) => x.id == id) ? id : '',
-            items: [const DropdownMenuItem(value: '', child: Text('Custom recipient')), ...widget.contacts.map((x) => DropdownMenuItem(value: x.id, child: Text('${x.name} • ${x.phone}')))],
-            onChanged: (v) => setState(() => id = v ?? ''),
+            initialValue: widget.contacts.any((c) => c.id == contactId) ? contactId : '',
+            items: [const DropdownMenuItem(value: '', child: Text('Custom recipient')), ...widget.contacts.map((c) => DropdownMenuItem(value: c.id, child: Text('${c.name} • ${c.phone}')))],
+            onChanged: (value) => setState(() => contactId = value ?? ''),
             decoration: const InputDecoration(labelText: 'Contact'),
           ),
-          if (id.isEmpty) ...[
+          if (contactId.isEmpty) ...[
             gap,
             TextField(controller: name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Name')),
             gap,
@@ -921,11 +916,11 @@ class _JobFormState extends State<JobForm> {
           ],
         ]),
         CleanCard(children: [
-          SectionHeader(icon: Icons.message_outlined, title: 'Message', subtitle: 'Keep it clear and short for testing.'),
-          TextField(controller: msg, maxLines: 4, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(labelText: 'Message')),
+          const SectionHeader(icon: Icons.message_outlined, title: 'Message', subtitle: 'Keep it clear and short for testing.'),
+          TextField(controller: message, maxLines: 4, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(labelText: 'Message')),
         ]),
         CleanCard(children: [
-          SectionHeader(icon: Icons.event, title: 'When should it send?', subtitle: 'Pick a date and time, or use a test shortcut.'),
+          const SectionHeader(icon: Icons.event, title: 'When should it send?', subtitle: 'Pick a date and time, or use a test shortcut.'),
           Row(children: [
             Expanded(child: OutlinedButton.icon(onPressed: pickDate, icon: const Icon(Icons.calendar_today), label: Text(_d(time)))),
             const SizedBox(width: 8),
@@ -946,7 +941,7 @@ class _JobFormState extends State<JobForm> {
             collapsedBackgroundColor: Colors.white,
             leading: const Icon(Icons.science_outlined),
             title: const Text('Advanced testing and repeats', style: TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: const Text('Create visible one-time sends. No hidden loops.'),
+            subtitle: const Text('Creates visible one-time sends. No hidden loops.'),
             childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             children: [
               Align(alignment: Alignment.centerLeft, child: FilledButton.tonalIcon(onPressed: recommendedTest, icon: const Icon(Icons.auto_awesome), label: const Text('Use recommended test'))),
@@ -977,14 +972,17 @@ class _JobFormState extends State<JobForm> {
           ),
         CleanCard(children: [
           SectionHeader(icon: Icons.visibility_outlined, title: 'Preview', subtitle: '$previewCount scheduled send${previewCount == 1 ? '' : 's'} will be created.'),
-          ...List.generate(previewCount, (i) => Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Row(children: [
-                  CircleAvatar(radius: 12, child: Text('${i + 1}', style: const TextStyle(fontSize: 12))),
-                  const SizedBox(width: 10),
-                  Text('${_d(spacedTime(time, spacing, i))} ${_t(spacedTime(time, spacing, i))}'),
-                ]),
-              )),
+          ...List.generate(previewCount, (index) {
+            final previewTime = spacedTime(time, spacing, index);
+            return Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(children: [
+                CircleAvatar(radius: 12, child: Text('${index + 1}', style: const TextStyle(fontSize: 12))),
+                const SizedBox(width: 10),
+                Text('${_d(previewTime)} ${_t(previewTime)}'),
+              ]),
+            );
+          }),
         ]),
         SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: saveJob, icon: const Icon(Icons.check), label: Text(editing ? 'Save schedule' : 'Create schedule'))),
       ]);
@@ -998,19 +996,19 @@ class _JobFormState extends State<JobForm> {
       });
 
   Future<void> pickDate() async {
-    final p = await showDatePicker(context: context, initialDate: time, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 730)));
-    if (p != null) setState(() => time = DateTime(p.year, p.month, p.day, time.hour, time.minute));
+    final picked = await showDatePicker(context: context, initialDate: time, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 730)));
+    if (picked != null) setState(() => time = DateTime(picked.year, picked.month, picked.day, time.hour, time.minute));
   }
 
   Future<void> pickTime() async {
-    final p = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(time));
-    if (p != null) setState(() => time = DateTime(time.year, time.month, time.day, p.hour, p.minute));
+    final picked = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(time));
+    if (picked != null) setState(() => time = DateTime(time.year, time.month, time.day, picked.hour, picked.minute));
   }
 
   void saveJob() {
-    final c = contact;
-    final chosenPhone = c?.phone ?? phone.text.trim();
-    if (chosenPhone.length < 7 || msg.text.trim().isEmpty) {
+    final contact = selectedContact;
+    final chosenPhone = contact?.phone ?? phone.text.trim();
+    if (chosenPhone.length < 7 || message.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Choose a contact or phone, and enter a message.')));
       return;
     }
@@ -1018,12 +1016,19 @@ class _JobFormState extends State<JobForm> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Choose a future date and time.')));
       return;
     }
-    final baseName = c?.name ?? (name.text.trim().isEmpty ? chosenPhone : name.text.trim());
-    final count = previewCount;
+    final baseName = contact?.name ?? (name.text.trim().isEmpty ? chosenPhone : name.text.trim());
     final seed = DateTime.now().microsecondsSinceEpoch.toString();
     final created = <Job>[];
-    for (var i = 0; i < count; i++) {
-      created.add(Job(id: i == 0 ? widget.job?.id ?? seed : '$seed-$i', contactId: c?.id, name: count == 1 ? baseName : '$baseName (${i + 1}/$count)', phone: chosenPhone, text: msg.text.trim(), time: spacedTime(time, spacing, i), status: Status.scheduled));
+    for (var i = 0; i < previewCount; i++) {
+      created.add(Job(
+        id: i == 0 ? widget.job?.id ?? seed : '$seed-$i',
+        contactId: contact?.id,
+        name: previewCount == 1 ? baseName : '$baseName (${i + 1}/$previewCount)',
+        phone: chosenPhone,
+        text: message.text.trim(),
+        time: spacedTime(time, spacing, i),
+        status: Status.scheduled,
+      ));
     }
     Navigator.pop(context, created);
   }
@@ -1032,9 +1037,14 @@ class _JobFormState extends State<JobForm> {
 class StatusPill extends StatelessWidget {
   const StatusPill({super.key, required this.job});
   final Job job;
+
   @override
   Widget build(BuildContext context) {
-    final color = switch (job.status) { Status.scheduled => job.due ? Colors.red : Colors.blue, Status.sent => Colors.green, Status.cancelled => Colors.grey };
+    final color = switch (job.status) {
+      Status.scheduled => job.due ? Colors.red : Colors.blue,
+      Status.sent => Colors.green,
+      Status.cancelled => Colors.grey,
+    };
     final label = job.status == Status.scheduled && job.due ? 'Due' : titleCase(job.status.name);
     return Chip(label: Text(label), backgroundColor: color.withAlpha(25), labelStyle: TextStyle(color: color, fontWeight: FontWeight.bold));
   }
@@ -1045,6 +1055,7 @@ class EmptyCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String message;
+
   @override
   Widget build(BuildContext context) => CleanCard(children: [
         Icon(icon, size: 38, color: const Color(0xFF2563EB)),
@@ -1062,8 +1073,9 @@ class AppPage extends StatelessWidget {
   final VoidCallback? fab;
   final IconData? icon;
   final String? subtitle;
+
   @override
-  Widget build(BuildContext c) => Scaffold(
+  Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(title), backgroundColor: Colors.transparent, elevation: 0),
         floatingActionButton: fab == null ? null : FloatingActionButton.extended(onPressed: fab, icon: const Icon(Icons.add), label: const Text('Add')),
         body: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [HeroPanel(title: title, subtitle: subtitle ?? '', icon: icon ?? Icons.apps), gap, ...children]),
@@ -1075,13 +1087,11 @@ class HeroPanel extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
+
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFF111827), Color(0xFF1D4ED8)]),
-          borderRadius: BorderRadius.circular(28),
-        ),
+        decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF111827), Color(0xFF1D4ED8)]), borderRadius: BorderRadius.circular(28)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(icon, color: Colors.white, size: 34),
           const SizedBox(height: 12),
@@ -1094,6 +1104,7 @@ class HeroPanel extends StatelessWidget {
 class CleanCard extends StatelessWidget {
   const CleanCard({super.key, required this.children});
   final List<Widget> children;
+
   @override
   Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children)));
 }
@@ -1103,6 +1114,7 @@ class SectionHeader extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
+
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -1121,6 +1133,7 @@ class FilterChipRow extends StatelessWidget {
   const FilterChipRow({super.key, required this.label, required this.onClear});
   final String label;
   final VoidCallback onClear;
+
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
@@ -1131,9 +1144,10 @@ class FilterChipRow extends StatelessWidget {
 class Sheet extends StatelessWidget {
   const Sheet({super.key, required this.children});
   final List<Widget> children;
+
   @override
-  Widget build(BuildContext c) => Padding(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(c).viewInsets.bottom + 16),
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).viewInsets.bottom + 16),
         child: ListView(shrinkWrap: true, children: children),
       );
 }
@@ -1143,13 +1157,43 @@ const gap = SizedBox(height: 12);
 const head = TextStyle(fontSize: 24, fontWeight: FontWeight.w900);
 const spacingOptions = ['once', 'test15', 'test30', 'test60', 'daily', 'weekly', 'monthly'];
 
-String _d(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-String _t(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+String _d(DateTime date) => '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+String _t(DateTime date) => '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 bool sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 String monthName(int month) => const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month - 1];
 String titleCase(String value) => value.isEmpty ? value : value[0].toUpperCase() + value.substring(1);
-String spacingLabel(String spacing) => switch (spacing) { 'test15' => '15 seconds apart (test)', 'test30' => '30 seconds apart (test)', 'test60' => '60 seconds apart (test)', 'daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly', _ => 'Once' };
+String spacingLabel(String spacing) => switch (spacing) {
+      'test15' => '15 seconds apart (test)',
+      'test30' => '30 seconds apart (test)',
+      'test60' => '60 seconds apart (test)',
+      'daily' => 'Daily',
+      'weekly' => 'Weekly',
+      'monthly' => 'Monthly',
+      _ => 'Once',
+    };
 int cappedCopies(String spacing, int copies) => spacing == 'once' ? 1 : spacing.startsWith('test') ? copies.clamp(1, 3) : copies.clamp(1, 10);
-DateTime spacedTime(DateTime start, String spacing, int index) => switch (spacing) { 'test15' => start.add(Duration(seconds: 15 * index)), 'test30' => start.add(Duration(seconds: 30 * index)), 'test60' => start.add(Duration(seconds: 60 * index)), 'daily' => start.add(Duration(days: index)), 'weekly' => start.add(Duration(days: 7 * index)), 'monthly' => DateTime(start.year, start.month + index, start.day, start.hour, start.minute), _ => start };
-IconData iconForStatus(String status) => switch (status) { 'sent' => Icons.send, 'delivered' => Icons.done_all, 'failed' => Icons.error_outline, 'blocked' => Icons.block, 'triggered' => Icons.alarm, _ => Icons.info_outline };
-Color colorForStatus(String status) => switch (status) { 'sent' => Colors.blue, 'delivered' => Colors.green, 'failed' => Colors.red, 'blocked' => Colors.orange, 'triggered' => Colors.purple, _ => Colors.grey };
+DateTime spacedTime(DateTime start, String spacing, int index) => switch (spacing) {
+      'test15' => start.add(Duration(seconds: 15 * index)),
+      'test30' => start.add(Duration(seconds: 30 * index)),
+      'test60' => start.add(Duration(seconds: 60 * index)),
+      'daily' => start.add(Duration(days: index)),
+      'weekly' => start.add(Duration(days: 7 * index)),
+      'monthly' => DateTime(start.year, start.month + index, start.day, start.hour, start.minute),
+      _ => start,
+    };
+IconData iconForStatus(String status) => switch (status) {
+      'sent' => Icons.send,
+      'delivered' => Icons.done_all,
+      'failed' => Icons.error_outline,
+      'blocked' => Icons.block,
+      'triggered' => Icons.alarm,
+      _ => Icons.info_outline,
+    };
+Color colorForStatus(String status) => switch (status) {
+      'sent' => Colors.blue,
+      'delivered' => Colors.green,
+      'failed' => Colors.red,
+      'blocked' => Colors.orange,
+      'triggered' => Colors.purple,
+      _ => Colors.grey,
+    };
