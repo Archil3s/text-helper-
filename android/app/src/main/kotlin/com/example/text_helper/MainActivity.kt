@@ -2,21 +2,22 @@ package com.example.text_helper
 
 import android.Manifest
 import android.app.AlarmManager
-import android.app.PendingIntent
-import android.media.RingtoneManager
-import android.media.AudioAttributes
-import android.app.NotificationManager
-import android.app.NotificationChannel
 import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.telephony.SmsManager
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -41,32 +42,23 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            nativeSmsChannelName
-        ).setMethodCallHandler { call, result ->
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, nativeSmsChannelName).setMethodCallHandler { call, result ->
             when (call.method) {
                 "sendSms" -> {
                     val phoneNumber = call.argument<String>("phoneNumber")
                     val message = call.argument<String>("message")
-                    val reminderId =
-                        call.argument<String>("reminderId") ?: "manual-${System.nanoTime()}"
-
+                    val reminderId = call.argument<String>("reminderId") ?: "manual-${System.nanoTime()}"
                     if (phoneNumber.isNullOrBlank() || message.isNullOrBlank()) {
                         result.error("INVALID_ARGUMENTS", "Phone number and message are required.", null)
                         return@setMethodCallHandler
                     }
-
                     sendSmsWithPermission(phoneNumber, message, reminderId, result)
                 }
                 else -> result.notImplemented()
             }
         }
 
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            backgroundAlarmChannelName
-        ).setMethodCallHandler { call, result ->
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, backgroundAlarmChannelName).setMethodCallHandler { call, result ->
             when (call.method) {
                 "requestSmsPermission" -> requestSmsPermissionOnly(result)
                 "canScheduleExactAlarms" -> result.success(canScheduleExactAlarms())
@@ -74,9 +66,7 @@ class MainActivity : FlutterActivity() {
                     openExactAlarmSettings()
                     result.success(null)
                 }
-                "isIgnoringBatteryOptimizations" -> {
-                    result.success(isIgnoringBatteryOptimizations())
-                }
+                "isIgnoringBatteryOptimizations" -> result.success(isIgnoringBatteryOptimizations())
                 "openBatteryOptimizationSettings" -> {
                     openBatteryOptimizationSettings()
                     result.success(null)
@@ -94,24 +84,15 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            notificationChannelName
-        ).setMethodCallHandler { call, result ->
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, notificationChannelName).setMethodCallHandler { call, result ->
             when (call.method) {
-                "getNotificationDiagnostics" -> {
-                    result.success(getNotificationDiagnostics())
-                }
+                "getNotificationDiagnostics" -> result.success(getNotificationDiagnostics())
                 "createReminderNotificationChannel" -> {
                     createReminderNotificationChannel()
                     result.success(getNotificationDiagnostics())
                 }
-                "requestPostNotificationsPermission" -> {
-                    requestPostNotificationsPermission(result)
-                }
-                "sendTestReminderNotification" -> {
-                    result.success(sendTestReminderNotification())
-                }
+                "requestPostNotificationsPermission" -> requestPostNotificationsPermission(result)
+                "sendTestReminderNotification" -> result.success(sendTestReminderNotification())
                 "openNotificationSettings" -> {
                     openNotificationSettings()
                     result.success(null)
@@ -123,33 +104,24 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            whatsAppChannelName
-        ).setMethodCallHandler { call, result ->
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, whatsAppChannelName).setMethodCallHandler { call, result ->
             when (call.method) {
-                
-                "isWhatsAppInstalled" -> {
-                    result.success(isWhatsAppInstalled())
-                }
+                "isWhatsAppInstalled" -> result.success(isWhatsAppInstalled())
                 "launchWhatsAppHandoff" -> {
                     val phoneNumber = call.argument<String>("phoneNumber")
                     val message = call.argument<String>("message")
-
                     if (phoneNumber.isNullOrBlank() || message.isNullOrBlank()) {
                         result.error("INVALID_ARGUMENTS", "Phone number and message are required.", null)
                         return@setMethodCallHandler
                     }
-
                     result.success(launchWhatsAppHandoff(phoneNumber, message))
                 }
                 else -> result.notImplemented()
             }
         }
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            deviceDiagnosticsChannelName
-        ).setMethodCallHandler { call, result ->
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, deviceDiagnosticsChannelName).setMethodCallHandler { call, result ->
             when (call.method) {
                 "getDeviceDiagnostics" -> result.success(getDeviceDiagnostics())
                 else -> result.notImplemented()
@@ -157,38 +129,28 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-
     private fun isWhatsAppInstalled(): Boolean {
         return try {
             packageManager.getPackageInfo("com.whatsapp", 0)
             true
-        } catch (error: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
 
     private fun launchWhatsAppHandoff(phoneNumber: String, message: String): Boolean {
         val number = normalizeWhatsAppNumber(phoneNumber)
-
-        if (number.isBlank()) {
-            return false
-        }
-
+        if (number.isBlank()) return false
         val uri = Uri.parse("https://wa.me/$number?text=${Uri.encode(message)}")
-
-        val whatsappIntent = Intent(Intent.ACTION_VIEW, uri).apply {
-            setPackage("com.whatsapp")
-        }
-
+        val whatsappIntent = Intent(Intent.ACTION_VIEW, uri).apply { setPackage("com.whatsapp") }
         return try {
             startActivity(whatsappIntent)
             true
-        } catch (firstError: Exception) {
+        } catch (_: Exception) {
             try {
-                val fallbackIntent = Intent(Intent.ACTION_VIEW, uri)
-                startActivity(fallbackIntent)
+                startActivity(Intent(Intent.ACTION_VIEW, uri))
                 true
-            } catch (secondError: Exception) {
+            } catch (_: Exception) {
                 false
             }
         }
@@ -196,41 +158,19 @@ class MainActivity : FlutterActivity() {
 
     private fun normalizeWhatsAppNumber(phoneNumber: String): String {
         val cleaned = phoneNumber.trim().replace(Regex("[^0-9+]"), "")
-
-        return if (cleaned.startsWith("+")) {
-            cleaned.substring(1)
-        } else {
-            cleaned
-        }
+        return if (cleaned.startsWith("+")) cleaned.substring(1) else cleaned
     }
-    private fun getDeviceDiagnostics(): Map<String, Any?> {
-        val batteryIntent = registerReceiver(
-            null,
-            IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        )
 
+    private fun getDeviceDiagnostics(): Map<String, Any?> {
+        val batteryIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val batteryLevel = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
         val batteryScale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
         val batteryStatus = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-        val batteryPercent = if (batteryLevel >= 0 && batteryScale > 0) {
-            ((batteryLevel * 100.0f) / batteryScale).toInt()
-        } else {
-            -1
-        }
-
-        val isCharging =
-            batteryStatus == BatteryManager.BATTERY_STATUS_CHARGING ||
-                batteryStatus == BatteryManager.BATTERY_STATUS_FULL
-
-        val smsPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
-
+        val batteryPercent = if (batteryLevel >= 0 && batteryScale > 0) ((batteryLevel * 100.0f) / batteryScale).toInt() else -1
+        val isCharging = batteryStatus == BatteryManager.BATTERY_STATUS_CHARGING || batteryStatus == BatteryManager.BATTERY_STATUS_FULL
+        val smsPermissionGranted = hasSendSmsPermission()
         val notificationsPermissionGranted = if (Build.VERSION.SDK_INT >= 33) {
-            checkSelfPermission("android.permission.POST_NOTIFICATIONS") ==
-                PackageManager.PERMISSION_GRANTED
+            checkSelfPermission("android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED
         } else {
             true
         }
@@ -262,7 +202,6 @@ class MainActivity : FlutterActivity() {
             result.success(true)
             return
         }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             pendingPermissionResult = result
             requestPermissions(arrayOf(Manifest.permission.SEND_SMS), 9002)
@@ -271,17 +210,11 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun sendSmsWithPermission(
-        phoneNumber: String,
-        message: String,
-        reminderId: String,
-        result: MethodChannel.Result
-    ) {
+    private fun sendSmsWithPermission(phoneNumber: String, message: String, reminderId: String, result: MethodChannel.Result) {
         if (hasSendSmsPermission()) {
             sendSmsNow(phoneNumber, message, reminderId, result)
             return
         }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             pendingSmsResult = result
             pendingPhoneNumber = phoneNumber
@@ -293,12 +226,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun sendSmsNow(
-        phoneNumber: String,
-        message: String,
-        reminderId: String,
-        result: MethodChannel.Result
-    ) {
+    private fun sendSmsNow(phoneNumber: String, message: String, reminderId: String, result: MethodChannel.Result) {
         try {
             sendSmsWithReceipts(phoneNumber, message, reminderId)
             result.success(true)
@@ -307,67 +235,23 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun sendSmsWithReceipts(
-        phoneNumber: String,
-        message: String,
-        reminderId: String
-    ) {
+    private fun sendSmsWithReceipts(phoneNumber: String, message: String, reminderId: String) {
         val smsManager = SmsManager.getDefault()
         val parts = smsManager.divideMessage(message)
         val sentIntents = ArrayList<PendingIntent>()
         val deliveredIntents = ArrayList<PendingIntent>()
-
         for (index in parts.indices) {
-            sentIntents.add(
-                createSmsStatusPendingIntent(
-                    receiverClass = SmsSentReceiver::class.java,
-                    reminderId = reminderId,
-                    phoneNumber = phoneNumber,
-                    message = message,
-                    partIndex = index,
-                    event = "sent"
-                )
-            )
-
-            deliveredIntents.add(
-                createSmsStatusPendingIntent(
-                    receiverClass = SmsDeliveredReceiver::class.java,
-                    reminderId = reminderId,
-                    phoneNumber = phoneNumber,
-                    message = message,
-                    partIndex = index,
-                    event = "delivered"
-                )
-            )
+            sentIntents.add(createSmsStatusPendingIntent(SmsSentReceiver::class.java, reminderId, phoneNumber, message, index, "sent"))
+            deliveredIntents.add(createSmsStatusPendingIntent(SmsDeliveredReceiver::class.java, reminderId, phoneNumber, message, index, "delivered"))
         }
-
         if (parts.size > 1) {
-            smsManager.sendMultipartTextMessage(
-                phoneNumber,
-                null,
-                parts,
-                sentIntents,
-                deliveredIntents
-            )
+            smsManager.sendMultipartTextMessage(phoneNumber, null, parts, sentIntents, deliveredIntents)
         } else {
-            smsManager.sendTextMessage(
-                phoneNumber,
-                null,
-                message,
-                sentIntents.firstOrNull(),
-                deliveredIntents.firstOrNull()
-            )
+            smsManager.sendTextMessage(phoneNumber, null, message, sentIntents.firstOrNull(), deliveredIntents.firstOrNull())
         }
     }
 
-    private fun createSmsStatusPendingIntent(
-        receiverClass: Class<*>,
-        reminderId: String,
-        phoneNumber: String,
-        message: String,
-        partIndex: Int,
-        event: String
-    ): PendingIntent {
+    private fun createSmsStatusPendingIntent(receiverClass: Class<*>, reminderId: String, phoneNumber: String, message: String, partIndex: Int, event: String): PendingIntent {
         val intent = Intent(this, receiverClass).apply {
             action = "text_helper.sms.$event.$reminderId.$partIndex.${System.nanoTime()}"
             putExtra("reminderId", reminderId)
@@ -375,101 +259,54 @@ class MainActivity : FlutterActivity() {
             putExtra("message", message)
             putExtra("partIndex", partIndex)
         }
-
-        return PendingIntent.getBroadcast(
-            this,
-            intent.action.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        return PendingIntent.getBroadcast(this, intent.action.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun canScheduleExactAlarms(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            return true
-        }
-
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
         val alarmManager = getSystemService(AlarmManager::class.java)
         return alarmManager.canScheduleExactAlarms()
     }
 
     private fun openExactAlarmSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val intent = Intent(
-                Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                Uri.parse("package:$packageName")
-            )
-            startActivity(intent)
+            startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName")))
         }
     }
 
     private fun isIgnoringBatteryOptimizations(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true
-        }
-
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
         val powerManager = getSystemService(PowerManager::class.java)
         return powerManager.isIgnoringBatteryOptimizations(packageName)
     }
 
     private fun openBatteryOptimizationSettings() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return
-        }
-
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
         try {
-            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                data = Uri.parse("package:$packageName")
-            }
-            startActivity(intent)
-        } catch (error: Exception) {
-            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-            startActivity(intent)
+            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply { data = Uri.parse("package:$packageName") })
+        } catch (_: Exception) {
+            startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         }
     }
 
     private fun createReminderNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return
-        }
-
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val notificationManager = getSystemService(NotificationManager::class.java)
-        val existingChannel =
-            notificationManager.getNotificationChannel(reminderNotificationChannelId)
-
-        if (existingChannel != null) {
-            return
-        }
-
-        val defaultSoundUri =
-            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
-
-        val channel = NotificationChannel(
-            reminderNotificationChannelId,
-            "Reminder tests",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description =
-                "Test reminder notification sound and vibration for Text Helper."
+        if (notificationManager.getNotificationChannel(reminderNotificationChannelId) != null) return
+        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val audioAttributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
+        val channel = NotificationChannel(reminderNotificationChannelId, "Reminder tests", NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "Test reminder notification sound and vibration for Text Helper."
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 250, 120, 250)
             setSound(defaultSoundUri, audioAttributes)
         }
-
         notificationManager.createNotificationChannel(channel)
     }
 
     private fun hasPostNotificationsPermission(): Boolean {
-        if (Build.VERSION.SDK_INT < 33) {
-            return true
-        }
-
-        return checkSelfPermission(postNotificationsPermission) ==
-            PackageManager.PERMISSION_GRANTED
+        if (Build.VERSION.SDK_INT < 33) return true
+        return checkSelfPermission(postNotificationsPermission) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun requestPostNotificationsPermission(result: MethodChannel.Result) {
@@ -477,7 +314,6 @@ class MainActivity : FlutterActivity() {
             result.success(true)
             return
         }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             pendingNotificationPermissionResult = result
             requestPermissions(arrayOf(postNotificationsPermission), 9003)
@@ -486,27 +322,13 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun areAppNotificationsEnabled(
-        notificationManager: NotificationManager
-    ): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            return notificationManager.areNotificationsEnabled()
-        }
-
-        return true
+    private fun areAppNotificationsEnabled(notificationManager: NotificationManager): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) notificationManager.areNotificationsEnabled() else true
     }
 
-    private fun isReminderChannelEnabled(
-        notificationManager: NotificationManager
-    ): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return true
-        }
-
-        val channel =
-            notificationManager.getNotificationChannel(reminderNotificationChannelId)
-                ?: return false
-
+    private fun isReminderChannelEnabled(notificationManager: NotificationManager): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true
+        val channel = notificationManager.getNotificationChannel(reminderNotificationChannelId) ?: return false
         return channel.importance != NotificationManager.IMPORTANCE_NONE
     }
 
@@ -524,32 +346,22 @@ class MainActivity : FlutterActivity() {
 
     private fun getNotificationDiagnostics(): Map<String, Any> {
         createReminderNotificationChannel()
-
         val notificationManager = getSystemService(NotificationManager::class.java)
         val notificationsEnabled = areAppNotificationsEnabled(notificationManager)
         val permissionGranted = hasPostNotificationsPermission()
-
         val channelCreated: Boolean
         val channelEnabled: Boolean
         val channelImportance: String
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel =
-                notificationManager.getNotificationChannel(reminderNotificationChannelId)
+            val channel = notificationManager.getNotificationChannel(reminderNotificationChannelId)
             channelCreated = channel != null
-            channelEnabled =
-                channel != null && channel.importance != NotificationManager.IMPORTANCE_NONE
-            channelImportance = if (channel == null) {
-                "missing"
-            } else {
-                describeNotificationImportance(channel.importance)
-            }
+            channelEnabled = channel != null && channel.importance != NotificationManager.IMPORTANCE_NONE
+            channelImportance = if (channel == null) "missing" else describeNotificationImportance(channel.importance)
         } else {
             channelCreated = true
             channelEnabled = true
             channelImportance = "not_required"
         }
-
         return mapOf(
             "apiLevel" to Build.VERSION.SDK_INT,
             "permissionGranted" to permissionGranted,
@@ -562,43 +374,22 @@ class MainActivity : FlutterActivity() {
 
     private fun sendTestReminderNotification(): Boolean {
         createReminderNotificationChannel()
-
         val notificationManager = getSystemService(NotificationManager::class.java)
-
-        if (!hasPostNotificationsPermission()) {
-            return false
-        }
-
-        if (!areAppNotificationsEnabled(notificationManager)) {
-            return false
-        }
-
-        if (!isReminderChannelEnabled(notificationManager)) {
-            return false
-        }
-
-        val notificationBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, reminderNotificationChannelId)
-        } else {
-            Notification.Builder(this)
-        }
-
+        if (!hasPostNotificationsPermission()) return false
+        if (!areAppNotificationsEnabled(notificationManager)) return false
+        if (!isReminderChannelEnabled(notificationManager)) return false
+        val notificationBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, reminderNotificationChannelId) else Notification.Builder(this)
         val notification = notificationBuilder
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Text Helper reminder test")
             .setContentText("If you heard a sound or felt vibration, reminder alerts are working.")
-            .setStyle(
-                Notification.BigTextStyle().bigText(
-                    "If you heard a sound or felt vibration, reminder alerts are working. If not, open notification settings and check sound, vibration, and channel status."
-                )
-            )
+            .setStyle(Notification.BigTextStyle().bigText("If you heard a sound or felt vibration, reminder alerts are working. If not, open notification settings and check sound, vibration, and channel status."))
             .setAutoCancel(true)
             .setWhen(System.currentTimeMillis())
             .setShowWhen(true)
             .setPriority(Notification.PRIORITY_HIGH)
             .setDefaults(Notification.DEFAULT_SOUND or Notification.DEFAULT_VIBRATE)
             .build()
-
         notificationManager.notify(reminderNotificationId, notification)
         return true
     }
@@ -606,21 +397,13 @@ class MainActivity : FlutterActivity() {
     private fun openNotificationSettings() {
         try {
             val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-                }
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply { putExtra(Settings.EXTRA_APP_PACKAGE, packageName) }
             } else {
-                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.parse("package:$packageName")
-                }
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply { data = Uri.parse("package:$packageName") }
             }
-
             startActivity(intent)
-        } catch (error: Exception) {
-            val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.parse("package:$packageName")
-            }
-            startActivity(fallback)
+        } catch (_: Exception) {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply { data = Uri.parse("package:$packageName") })
         }
     }
 
@@ -629,14 +412,12 @@ class MainActivity : FlutterActivity() {
             openNotificationSettings()
             return
         }
-
         try {
-            val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+            startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
                 putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
                 putExtra(Settings.EXTRA_CHANNEL_ID, reminderNotificationChannelId)
-            }
-            startActivity(intent)
-        } catch (error: Exception) {
+            })
+        } catch (_: Exception) {
             openNotificationSettings()
         }
     }
@@ -644,14 +425,21 @@ class MainActivity : FlutterActivity() {
     private fun syncBackgroundAlarms(alarms: List<Map<String, Any?>>): Int {
         cancelAllBackgroundAlarms()
 
+        val alarmManager = getSystemService(AlarmManager::class.java)
         val scheduledIds = mutableSetOf<String>()
+        val sortedAlarms = alarms.sortedBy { (it["scheduledAtMillis"] as? Number)?.toLong() ?: Long.MAX_VALUE }
+        val now = System.currentTimeMillis()
+        val safeStart = now + 3000L
+        var previousOriginal: Long? = null
+        var previousTrigger: Long? = null
         var count = 0
 
-        for (alarm in alarms) {
+        for (alarm in sortedAlarms) {
             val alarmId = alarm["alarmId"] as? String ?: continue
             val phoneNumber = alarm["phoneNumber"] as? String ?: continue
             val message = alarm["message"] as? String ?: continue
             val scheduledAtMillis = (alarm["scheduledAtMillis"] as? Number)?.toLong() ?: continue
+            val triggerAt = correctedTriggerAt(scheduledAtMillis, now, safeStart, previousOriginal, previousTrigger)
 
             val intent = Intent(this, BackgroundSmsReceiver::class.java).apply {
                 putExtra("alarmId", alarmId)
@@ -662,48 +450,29 @@ class MainActivity : FlutterActivity() {
                 putExtra("location", alarm["location"] as? String ?: "")
                 putExtra("message", message)
                 putExtra("scheduledAtMillis", scheduledAtMillis)
+                putExtra("actualTriggerAtMillis", triggerAt)
                 putExtra("recurrenceRule", alarm["recurrenceRule"] as? String ?: "once")
                 putExtra("templateName", alarm["templateName"] as? String ?: "Custom")
                 putExtra("notes", alarm["notes"] as? String ?: "")
             }
 
-            val pendingIntent = PendingIntent.getBroadcast(
+            val pendingIntent = PendingIntent.getBroadcast(this, alarmId.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            scheduleSmsAlarm(alarmManager, alarmId, triggerAt, pendingIntent)
+
+            SmsStatusStore.writeTimelineEvent(
                 this,
-                alarmId.hashCode(),
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                alarm["reminderId"] as? String ?: alarmId,
+                phoneNumber,
+                message,
+                "scheduled",
+                "Scheduled",
+                "Alarm set for $triggerAt. Original requested time was $scheduledAtMillis."
             )
-
-            val alarmManager = getSystemService(AlarmManager::class.java)
-            val triggerAt = if (scheduledAtMillis < System.currentTimeMillis()) {
-                System.currentTimeMillis() + 1000L
-            } else {
-                scheduledAtMillis
-            }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerAt,
-                        pendingIntent
-                    )
-                } else {
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerAt,
-                        pendingIntent
-                    )
-                }
-            } else {
-                alarmManager.setExact(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerAt,
-                    pendingIntent
-                )
-            }
+            Log.i("TextHelperAlarms", "Scheduled alarmId=$alarmId original=$scheduledAtMillis trigger=$triggerAt phone=$phoneNumber")
 
             scheduledIds.add(alarmId)
+            previousOriginal = scheduledAtMillis
+            previousTrigger = triggerAt
             count += 1
         }
 
@@ -715,34 +484,47 @@ class MainActivity : FlutterActivity() {
         return count
     }
 
+    private fun correctedTriggerAt(scheduledAtMillis: Long, now: Long, safeStart: Long, previousOriginal: Long?, previousTrigger: Long?): Long {
+        if (scheduledAtMillis >= now + 1500L) return scheduledAtMillis
+        if (previousOriginal == null || previousTrigger == null) return safeStart
+        val intendedGap = (scheduledAtMillis - previousOriginal).coerceAtLeast(15_000L)
+        return maxOf(safeStart, previousTrigger + intendedGap)
+    }
+
+    private fun scheduleSmsAlarm(alarmManager: AlarmManager, alarmId: String, triggerAt: Long, pendingIntent: PendingIntent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            val showIntent = PendingIntent.getActivity(
+                this,
+                "show-$alarmId".hashCode(),
+                Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAt, showIntent), pendingIntent)
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+        } else {
+            alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+        }
+    }
+
     private fun cancelAllBackgroundAlarms() {
         val prefs = getSharedPreferences("text_helper_native_alarm_store", MODE_PRIVATE)
         val ids = prefs.getStringSet("scheduled_alarm_ids", emptySet()) ?: emptySet()
         val alarmManager = getSystemService(AlarmManager::class.java)
-
         for (id in ids) {
             val intent = Intent(this, BackgroundSmsReceiver::class.java)
-            val pendingIntent = PendingIntent.getBroadcast(
-                this,
-                id.hashCode(),
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
+            val pendingIntent = PendingIntent.getBroadcast(this, id.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             alarmManager.cancel(pendingIntent)
         }
-
         prefs.edit().remove("scheduled_alarm_ids").apply()
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        val granted = grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
 
         if (requestCode == 9003) {
             pendingNotificationPermissionResult?.success(granted)
@@ -756,9 +538,7 @@ class MainActivity : FlutterActivity() {
             return
         }
 
-        if (requestCode != 9001) {
-            return
-        }
+        if (requestCode != 9001) return
 
         val result = pendingSmsResult
         val phoneNumber = pendingPhoneNumber
@@ -770,9 +550,7 @@ class MainActivity : FlutterActivity() {
         pendingMessage = null
         pendingReminderId = null
 
-        if (result == null || phoneNumber == null || message == null || reminderId == null) {
-            return
-        }
+        if (result == null || phoneNumber == null || message == null || reminderId == null) return
 
         if (granted) {
             sendSmsNow(phoneNumber, message, reminderId, result)
@@ -781,4 +559,3 @@ class MainActivity : FlutterActivity() {
         }
     }
 }
-
