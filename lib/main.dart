@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -69,10 +71,13 @@ class App extends StatefulWidget {
 }
 
 class _AppState extends State<App> {
+  static const alarmChannel = MethodChannel('text_helper/background_alarm');
   final contacts = <Contact>[];
   final jobs = <Job>[];
   int tab = 0;
   bool loaded = false;
+  bool autoSend = false;
+  bool syncingAlarms = false;
   Timer? dueRefreshTimer;
 
   @override
@@ -94,13 +99,17 @@ class _AppState extends State<App> {
     final p = await SharedPreferences.getInstance();
     contacts.addAll((p.getStringList('contacts') ?? []).map((e) => Contact.fromJson(jsonDecode(e) as Map<String, dynamic>)));
     jobs.addAll((p.getStringList('jobs') ?? []).map((e) => Job.fromJson(jsonDecode(e) as Map<String, dynamic>)));
+    autoSend = p.getBool('auto_send_sms') ?? false;
     setState(() => loaded = true);
+    if (autoSend) await syncNativeAlarms(showResult: false);
   }
 
   Future<void> save() async {
     final p = await SharedPreferences.getInstance();
     await p.setStringList('contacts', contacts.map((e) => jsonEncode(e.toJson())).toList());
     await p.setStringList('jobs', jobs.map((e) => jsonEncode(e.toJson())).toList());
+    await p.setBool('auto_send_sms', autoSend);
+    await syncNativeAlarms(showResult: false);
   }
 
   void snack(String message) {
@@ -108,6 +117,76 @@ class _AppState extends State<App> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> setAutoSend(bool enabled) async {
+    if (enabled) {
+      final ok = await requestSmsPermission();
+      if (!ok) {
+        snack('SMS permission is required for auto-send.');
+        return;
+      }
+      final canExact = await canScheduleExactAlarms();
+      if (!canExact) {
+        snack('Exact alarm permission may be needed for precise closed-app sending.');
+      }
+    }
+    setState(() => autoSend = enabled);
+    final p = await SharedPreferences.getInstance();
+    await p.setBool('auto_send_sms', autoSend);
+    await syncNativeAlarms(showResult: true);
+  }
+
+  Future<bool> requestSmsPermission() async {
+    try {
+      return await alarmChannel.invokeMethod<bool>('requestSmsPermission') ?? false;
+    } catch (error) {
+      snack('Could not request SMS permission: $error');
+      return false;
+    }
+  }
+
+  Future<bool> canScheduleExactAlarms() async {
+    try {
+      return await alarmChannel.invokeMethod<bool>('canScheduleExactAlarms') ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<void> syncNativeAlarms({required bool showResult}) async {
+    if (syncingAlarms) return;
+    syncingAlarms = true;
+    try {
+      if (!autoSend) {
+        await alarmChannel.invokeMethod<void>('cancelAllBackgroundAlarms');
+        if (showResult) snack('Auto-send disabled. Background alarms cancelled.');
+        return;
+      }
+      final now = DateTime.now();
+      final alarms = jobs
+          .where((j) => j.status == Status.scheduled && j.time.isAfter(now) && j.phone.trim().isNotEmpty && j.text.trim().isNotEmpty)
+          .map((j) => {
+                'alarmId': j.id,
+                'reminderId': j.id,
+                'contactId': j.contactId ?? '',
+                'phoneNumber': j.phone.trim(),
+                'message': j.text.trim(),
+                'appointmentTitle': j.name,
+                'location': '',
+                'scheduledAtMillis': j.time.millisecondsSinceEpoch,
+                'recurrenceRule': 'once',
+                'templateName': 'Text Helper',
+                'notes': 'Scheduled from Text Helper',
+              })
+          .toList();
+      final count = await alarmChannel.invokeMethod<int>('syncBackgroundAlarms', {'alarms': alarms}) ?? 0;
+      if (showResult) snack('Auto-send enabled. $count background alarm${count == 1 ? '' : 's'} synced.');
+    } catch (error) {
+      if (showResult) snack('Could not sync background alarms: $error');
+    } finally {
+      syncingAlarms = false;
+    }
   }
 
   Future<void> openSms(String phone, String text) async {
@@ -160,7 +239,7 @@ class _AppState extends State<App> {
       jobs.sort((a, b) => a.time.compareTo(b.time));
     });
     await save();
-    snack(j == null ? 'Message scheduled.' : 'Schedule updated.');
+    snack(autoSend ? 'Message scheduled and synced for background send.' : 'Message scheduled. Enable auto-send for closed-app sending.');
   }
 
   Future<void> toggleFavorite(Contact c) async {
@@ -177,7 +256,7 @@ class _AppState extends State<App> {
       body: [
         SmsPage(contacts: contacts, onSms: openSms),
         ContactPage(contacts: contacts, onEdit: editContact, onDelete: (c) { setState(() => contacts.remove(c)); save(); snack('Contact deleted.'); }, onSms: (c) => openSms(c.phone, ''), onSchedule: (c) => editJob(null, c), onFav: toggleFavorite),
-        SchedulePage(jobs: jobs, onEdit: editJob, onOpen: (j) => openSms(j.phone, j.text), onSent: (j) { setState(() => jobs[jobs.indexOf(j)] = j.copy(status: Status.sent)); save(); snack('Marked sent.'); }, onCancel: (j) { setState(() => jobs[jobs.indexOf(j)] = j.copy(status: Status.cancelled)); save(); snack('Schedule cancelled.'); }),
+        SchedulePage(jobs: jobs, autoSend: autoSend, onToggleAutoSend: setAutoSend, onSyncAlarms: () => syncNativeAlarms(showResult: true), onEdit: editJob, onOpen: (j) => openSms(j.phone, j.text), onSent: (j) { setState(() => jobs[jobs.indexOf(j)] = j.copy(status: Status.sent)); save(); snack('Marked sent.'); }, onCancel: (j) { setState(() => jobs[jobs.indexOf(j)] = j.copy(status: Status.cancelled)); save(); snack('Schedule cancelled.'); }),
       ][tab],
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
@@ -204,21 +283,9 @@ class _SmsPageState extends State<SmsPage> {
   final phone = TextEditingController();
   final msg = TextEditingController();
   String id = '';
-
   @override
-  void dispose() {
-    phone.dispose();
-    msg.dispose();
-    super.dispose();
-  }
-
-  Contact? get selected {
-    for (final x in widget.contacts) {
-      if (x.id == id) return x;
-    }
-    return null;
-  }
-
+  void dispose() { phone.dispose(); msg.dispose(); super.dispose(); }
+  Contact? get selected { for (final x in widget.contacts) { if (x.id == id) return x; } return null; }
   @override
   Widget build(BuildContext c) => Page(title: 'SMS', icon: Icons.sms, subtitle: 'Pick a saved contact or type a number. Your SMS app opens with the draft ready to review.', children: [
     DropdownButtonFormField<String>(
@@ -262,8 +329,11 @@ class ContactPage extends StatelessWidget {
 }
 
 class SchedulePage extends StatelessWidget {
-  const SchedulePage({super.key, required this.jobs, required this.onEdit, required this.onOpen, required this.onSent, required this.onCancel});
+  const SchedulePage({super.key, required this.jobs, required this.autoSend, required this.onToggleAutoSend, required this.onSyncAlarms, required this.onEdit, required this.onOpen, required this.onSent, required this.onCancel});
   final List<Job> jobs;
+  final bool autoSend;
+  final ValueChanged<bool> onToggleAutoSend;
+  final VoidCallback onSyncAlarms;
   final Future<void> Function(Job?) onEdit;
   final void Function(Job) onOpen;
   final void Function(Job) onSent;
@@ -273,7 +343,15 @@ class SchedulePage extends StatelessWidget {
     final sorted = [...jobs]..sort((a, b) => a.time.compareTo(b.time));
     final due = jobs.where((j) => j.status == Status.scheduled && j.due).length;
     final upcoming = jobs.where((j) => j.status == Status.scheduled && !j.due).length;
-    return Page(title: 'Scheduler', icon: Icons.event_note, subtitle: '$due due • $upcoming upcoming. Use +15 sec in the form for fast testing.', fab: () => onEdit(null), children: [
+    return Page(title: 'Scheduler', icon: Icons.event_note, subtitle: '$due due • $upcoming upcoming. Turn on Auto-send to send while the app is closed.', fab: () => onEdit(null), children: [
+      Card(child: SwitchListTile(
+        value: autoSend,
+        onChanged: onToggleAutoSend,
+        title: const Text('Auto-send scheduled SMS'),
+        subtitle: const Text('Uses Android SMS permission and alarms. Only explicit scheduled messages are sent.'),
+        secondary: Icon(autoSend ? Icons.send : Icons.sms_outlined),
+      )),
+      Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: onSyncAlarms, icon: const Icon(Icons.sync), label: const Text('Sync background alarms now'))),
       if (sorted.isEmpty) const EmptyCard(icon: Icons.event_note, title: 'No scheduled texts', message: 'Tap + to schedule a message, or schedule one directly from a contact.'),
       ...sorted.map((j) => Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Expanded(child: Text(j.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))), StatusPill(job: j)]),
