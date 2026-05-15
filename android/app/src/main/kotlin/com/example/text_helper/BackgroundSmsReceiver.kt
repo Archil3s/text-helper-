@@ -176,7 +176,7 @@ class BackgroundSmsReceiver : BroadcastReceiver() {
             if (createdMillis >= now - 86_400_000L) sentDay += 1
         }
 
-        if (sentMinute >= 3) return "Rate limit hit: too many sends in the last minute."
+        if (sentMinute >= 5) return "Rate limit hit: 5 sends already happened in the last minute. Wait 60 seconds or use 60-second spacing for testing."
         if (sentHour >= 30) return "Rate limit hit: too many sends in the last hour."
         if (sentDay >= 100) return "Rate limit hit: too many sends in the last day."
         return null
