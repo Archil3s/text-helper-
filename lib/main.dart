@@ -64,6 +64,34 @@ class Job {
   factory Job.fromJson(Map<String, dynamic> j) => Job(id: j['id'] as String, contactId: j['contactId'] as String?, name: j['name'] as String? ?? '', phone: j['phone'] as String? ?? '', text: j['text'] as String? ?? '', time: DateTime.tryParse(j['time'] as String? ?? '') ?? DateTime.now(), status: Status.values.firstWhere((s) => s.name == j['status'], orElse: () => Status.scheduled));
 }
 
+class NativeLogEvent {
+  NativeLogEvent({required this.title, required this.status, required this.detail, required this.phone, required this.reminderId, required this.createdAt});
+  final String title;
+  final String status;
+  final String detail;
+  final String phone;
+  final String reminderId;
+  final DateTime createdAt;
+
+  factory NativeLogEvent.fromTimeline(Map<String, dynamic> j) => NativeLogEvent(
+        title: j['title'] as String? ?? j['status'] as String? ?? 'Event',
+        status: j['status'] as String? ?? 'event',
+        detail: j['detail'] as String? ?? '',
+        phone: j['phoneNumber'] as String? ?? '',
+        reminderId: j['reminderId'] as String? ?? '',
+        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
+      );
+
+  factory NativeLogEvent.fromReceipt(Map<String, dynamic> j) => NativeLogEvent(
+        title: j['event'] as String? ?? 'Receipt',
+        status: j['status'] as String? ?? 'receipt',
+        detail: j['errorMessage'] as String? ?? 'Result code ${j['resultCode'] ?? ''}',
+        phone: j['phoneNumber'] as String? ?? '',
+        reminderId: j['reminderId'] as String? ?? '',
+        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
+      );
+}
+
 class App extends StatefulWidget {
   const App({super.key});
   @override
@@ -74,10 +102,13 @@ class _AppState extends State<App> {
   static const alarmChannel = MethodChannel('text_helper/background_alarm');
   final contacts = <Contact>[];
   final jobs = <Job>[];
+  final nativeEvents = <NativeLogEvent>[];
   int tab = 0;
   bool loaded = false;
   bool autoSend = false;
   bool syncingAlarms = false;
+  int lastSyncedAlarmCount = 0;
+  DateTime? lastLogRefresh;
   Timer? dueRefreshTimer;
 
   @override
@@ -86,6 +117,7 @@ class _AppState extends State<App> {
     load();
     dueRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) setState(() {});
+      loadNativeLogs(silent: true);
     });
   }
 
@@ -100,8 +132,38 @@ class _AppState extends State<App> {
     contacts.addAll((p.getStringList('contacts') ?? []).map((e) => Contact.fromJson(jsonDecode(e) as Map<String, dynamic>)));
     jobs.addAll((p.getStringList('jobs') ?? []).map((e) => Job.fromJson(jsonDecode(e) as Map<String, dynamic>)));
     autoSend = p.getBool('auto_send_sms') ?? false;
+    await loadNativeLogs(silent: true);
+    if (!mounted) return;
     setState(() => loaded = true);
     if (autoSend) await syncNativeAlarms(showResult: false);
+  }
+
+  Future<void> loadNativeLogs({required bool silent}) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final events = <NativeLogEvent>[];
+      events.addAll(parseNativeArray(p.getString('text_helper_message_timeline_events')).map(NativeLogEvent.fromTimeline));
+      events.addAll(parseNativeArray(p.getString('text_helper_delivery_receipts')).map(NativeLogEvent.fromReceipt));
+      events.addAll(parseNativeArray(p.getString('text_helper_send_log')).map(NativeLogEvent.fromTimeline));
+      events.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      if (!mounted) return;
+      setState(() {
+        nativeEvents
+          ..clear()
+          ..addAll(events.take(25));
+        lastLogRefresh = DateTime.now();
+      });
+      if (!silent) snack('Diagnostics refreshed.');
+    } catch (error) {
+      if (!silent) snack('Could not read diagnostics: $error');
+    }
+  }
+
+  List<Map<String, dynamic>> parseNativeArray(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return const [];
+    final decoded = jsonDecode(raw);
+    if (decoded is! List) return const [];
+    return decoded.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   Future<void> save() async {
@@ -158,6 +220,7 @@ class _AppState extends State<App> {
     try {
       if (!autoSend) {
         await alarmChannel.invokeMethod<void>('cancelAllBackgroundAlarms');
+        lastSyncedAlarmCount = 0;
         if (showResult) snack('Auto-send disabled. Background alarms cancelled.');
         return;
       }
@@ -179,6 +242,7 @@ class _AppState extends State<App> {
               })
           .toList();
       final count = await alarmChannel.invokeMethod<int>('syncBackgroundAlarms', {'alarms': alarms}) ?? 0;
+      if (mounted) setState(() => lastSyncedAlarmCount = count);
       if (showResult) snack('Auto-send enabled. $count background alarm${count == 1 ? '' : 's'} synced.');
     } catch (error) {
       if (showResult) snack('Could not sync background alarms: $error');
@@ -193,10 +257,7 @@ class _AppState extends State<App> {
       return;
     }
     try {
-      final opened = await launchUrl(
-        Uri(scheme: 'sms', path: phone.trim(), queryParameters: text.trim().isEmpty ? null : {'body': text.trim()}),
-        mode: LaunchMode.externalApplication,
-      );
+      final opened = await launchUrl(Uri(scheme: 'sms', path: phone.trim(), queryParameters: text.trim().isEmpty ? null : {'body': text.trim()}), mode: LaunchMode.externalApplication);
       if (!opened) snack('Could not open the SMS app.');
     } catch (error) {
       snack('Could not open SMS: $error');
@@ -249,7 +310,7 @@ class _AppState extends State<App> {
       body: [
         SmsPage(contacts: contacts, onSms: openSms),
         ContactPage(contacts: contacts, onEdit: editContact, onDelete: (c) { setState(() => contacts.remove(c)); save(); snack('Contact deleted.'); }, onSms: (c) => openSms(c.phone, ''), onSchedule: (c) => editJob(null, c), onFav: toggleFavorite),
-        SchedulePage(jobs: jobs, autoSend: autoSend, onToggleAutoSend: setAutoSend, onSyncAlarms: () => syncNativeAlarms(showResult: true), onEdit: editJob, onOpen: (j) => openSms(j.phone, j.text), onSent: (j) { setState(() => jobs[jobs.indexOf(j)] = j.copy(status: Status.sent)); save(); snack('Marked sent.'); }, onCancel: (j) { setState(() => jobs[jobs.indexOf(j)] = j.copy(status: Status.cancelled)); save(); snack('Schedule cancelled.'); }),
+        SchedulePage(jobs: jobs, autoSend: autoSend, nativeEvents: nativeEvents, lastSyncedAlarmCount: lastSyncedAlarmCount, lastLogRefresh: lastLogRefresh, onToggleAutoSend: setAutoSend, onSyncAlarms: () => syncNativeAlarms(showResult: true), onRefreshLogs: () => loadNativeLogs(silent: false), onEdit: editJob, onOpen: (j) => openSms(j.phone, j.text), onSent: (j) { setState(() => jobs[jobs.indexOf(j)] = j.copy(status: Status.sent)); save(); snack('Marked sent.'); }, onCancel: (j) { setState(() => jobs[jobs.indexOf(j)] = j.copy(status: Status.cancelled)); save(); snack('Schedule cancelled.'); }),
       ][tab],
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
@@ -317,11 +378,15 @@ class ContactPage extends StatelessWidget {
 }
 
 class SchedulePage extends StatefulWidget {
-  const SchedulePage({super.key, required this.jobs, required this.autoSend, required this.onToggleAutoSend, required this.onSyncAlarms, required this.onEdit, required this.onOpen, required this.onSent, required this.onCancel});
+  const SchedulePage({super.key, required this.jobs, required this.autoSend, required this.nativeEvents, required this.lastSyncedAlarmCount, required this.lastLogRefresh, required this.onToggleAutoSend, required this.onSyncAlarms, required this.onRefreshLogs, required this.onEdit, required this.onOpen, required this.onSent, required this.onCancel});
   final List<Job> jobs;
   final bool autoSend;
+  final List<NativeLogEvent> nativeEvents;
+  final int lastSyncedAlarmCount;
+  final DateTime? lastLogRefresh;
   final ValueChanged<bool> onToggleAutoSend;
   final VoidCallback onSyncAlarms;
+  final VoidCallback onRefreshLogs;
   final Future<void> Function(Job?) onEdit;
   final void Function(Job) onOpen;
   final void Function(Job) onSent;
@@ -342,7 +407,8 @@ class _SchedulePageState extends State<SchedulePage> {
     final upcoming = widget.jobs.where((j) => j.status == Status.scheduled && !j.due).length;
     return Page(title: 'Scheduler', icon: Icons.event_note, subtitle: '$due due • $upcoming upcoming. Tap a calendar day to filter.', fab: () => widget.onEdit(null), children: [
       Card(child: SwitchListTile(value: widget.autoSend, onChanged: widget.onToggleAutoSend, title: const Text('Auto-send scheduled SMS'), subtitle: const Text('Uses Android SMS permission and alarms. Only explicit scheduled messages are sent.'), secondary: Icon(widget.autoSend ? Icons.send : Icons.sms_outlined))),
-      Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: widget.onSyncAlarms, icon: const Icon(Icons.sync), label: const Text('Sync background alarms now'))),
+      Align(alignment: Alignment.centerLeft, child: Wrap(spacing: 8, children: [TextButton.icon(onPressed: widget.onSyncAlarms, icon: const Icon(Icons.sync), label: const Text('Sync alarms')), TextButton.icon(onPressed: widget.onRefreshLogs, icon: const Icon(Icons.receipt_long), label: const Text('Refresh logs'))])),
+      DiagnosticsCard(autoSend: widget.autoSend, alarmCount: widget.lastSyncedAlarmCount, lastRefresh: widget.lastLogRefresh, events: widget.nativeEvents),
       SchedulerCalendar(month: calendarMonth, selectedDay: selectedDay, jobs: widget.jobs, onPrevious: () => setState(() => calendarMonth = DateTime(calendarMonth.year, calendarMonth.month - 1)), onNext: () => setState(() => calendarMonth = DateTime(calendarMonth.year, calendarMonth.month + 1)), onPickDay: (day) => setState(() => selectedDay = selectedDay != null && sameDay(selectedDay!, day) ? null : day)),
       if (selectedDay != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(children: [Expanded(child: Text('Showing ${_d(selectedDay!)}', style: const TextStyle(fontWeight: FontWeight.bold))), TextButton(onPressed: () => setState(() => selectedDay = null), child: const Text('Clear'))])),
       if (filtered.isEmpty) const EmptyCard(icon: Icons.event_note, title: 'No scheduled texts', message: 'Tap + to schedule a message, or schedule one directly from a contact.'),
@@ -354,9 +420,43 @@ class _SchedulePageState extends State<SchedulePage> {
         const SizedBox(height: 8),
         Text(j.text),
         const SizedBox(height: 12),
-        Wrap(spacing: 8, runSpacing: 8, children: [FilledButton.tonalIcon(onPressed: j.status == Status.scheduled ? () => widget.onOpen(j) : null, icon: const Icon(Icons.sms), label: const Text('Open SMS')), OutlinedButton(onPressed: () => widget.onEdit(j), child: const Text('Edit')), OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onSent(j) : null, child: const Text('Sent')), OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onCancel(j) : null, child: const Text('Cancel'))])
+        Wrap(spacing: 8, runSpacing: 8, children: [FilledButton.tonalIcon(onPressed: j.status == Status.scheduled ? () => widget.onOpen(j) : null, icon: const Icon(Icons.sms), label: const Text('Open SMS')), OutlinedButton(onPressed: () => widget.onEdit(j), child: const Text('Edit')), OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onSent(j) : null, child: const Text('Sent')), OutlinedButton(onPressed: j.status == Status.scheduled ? () => widget.onCancel(j), child: const Text('Cancel'))])
       ]))))
     ]);
+  }
+}
+
+class DiagnosticsCard extends StatelessWidget {
+  const DiagnosticsCard({super.key, required this.autoSend, required this.alarmCount, required this.lastRefresh, required this.events});
+  final bool autoSend;
+  final int alarmCount;
+  final DateTime? lastRefresh;
+  final List<NativeLogEvent> events;
+
+  @override
+  Widget build(BuildContext context) {
+    final last = events.isEmpty ? null : events.first;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [const Expanded(child: Text('Send diagnostics', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))), Chip(label: Text(autoSend ? 'auto-send on' : 'auto-send off'))]),
+          Text('Last synced alarms: $alarmCount'),
+          Text('Last refresh: ${lastRefresh == null ? 'never' : _t(lastRefresh!)}'),
+          if (last != null) ...[
+            const SizedBox(height: 8),
+            Text('Latest: ${last.title} • ${last.status}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            if (last.phone.isNotEmpty) Text(last.phone, style: const TextStyle(color: Colors.black54)),
+            if (last.detail.isNotEmpty) Text(last.detail, style: const TextStyle(color: Colors.black54)),
+          ],
+          const SizedBox(height: 10),
+          if (events.isEmpty)
+            const Text('No native send events yet. Send a scheduled SMS, then tap Refresh logs.')
+          else
+            ...events.take(5).map((e) => Padding(padding: const EdgeInsets.only(top: 8), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(iconForStatus(e.status), size: 18, color: colorForStatus(e.status)), const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${e.title} • ${e.status}', style: const TextStyle(fontWeight: FontWeight.w700)), Text('${_d(e.createdAt)} ${_t(e.createdAt)} ${e.phone}', style: const TextStyle(color: Colors.black54)), if (e.detail.isNotEmpty) Text(e.detail, style: const TextStyle(color: Colors.black54))]))]))),
+        ]),
+      ),
+    );
   }
 }
 
@@ -513,3 +613,5 @@ String monthName(int month) => const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
 String spacingLabel(String spacing) => switch (spacing) { 'test15' => '15 seconds apart (test)', 'test30' => '30 seconds apart (test)', 'test60' => '60 seconds apart (test)', 'daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly', _ => 'Once' };
 int cappedCopies(String spacing, int copies) => spacing == 'once' ? 1 : spacing.startsWith('test') ? copies.clamp(1, 3) : copies.clamp(1, 10);
 DateTime spacedTime(DateTime start, String spacing, int index) => switch (spacing) { 'test15' => start.add(Duration(seconds: 15 * index)), 'test30' => start.add(Duration(seconds: 30 * index)), 'test60' => start.add(Duration(seconds: 60 * index)), 'daily' => start.add(Duration(days: index)), 'weekly' => start.add(Duration(days: 7 * index)), 'monthly' => DateTime(start.year, start.month + index, start.day, start.hour, start.minute), _ => start };
+IconData iconForStatus(String status) => switch (status) { 'sent' => Icons.send, 'delivered' => Icons.done_all, 'failed' => Icons.error_outline, 'blocked' => Icons.block, 'triggered' => Icons.alarm, _ => Icons.info_outline };
+Color colorForStatus(String status) => switch (status) { 'sent' => Colors.blue, 'delivered' => Colors.green, 'failed' => Colors.red, 'blocked' => Colors.orange, 'triggered' => Colors.purple, _ => Colors.grey };
