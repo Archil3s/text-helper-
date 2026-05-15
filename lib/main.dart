@@ -44,6 +44,7 @@ class TextHelperApp extends StatelessWidget {
 }
 
 enum Status { scheduled, sent, cancelled }
+enum ScheduleFilter { active, history, all }
 
 class Contact {
   const Contact({required this.id, required this.name, required this.phone, this.note = '', this.fav = false});
@@ -550,25 +551,43 @@ class SchedulePage extends StatefulWidget {
 class _SchedulePageState extends State<SchedulePage> {
   late DateTime calendarMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? selectedDay;
+  ScheduleFilter filter = ScheduleFilter.active;
 
   @override
   Widget build(BuildContext context) {
     final sorted = [...widget.jobs]..sort((a, b) => a.time.compareTo(b.time));
-    final filtered = selectedDay == null ? sorted : sorted.where((j) => sameDay(j.time, selectedDay!)).toList();
+    final dateFiltered = selectedDay == null ? sorted : sorted.where((j) => sameDay(j.time, selectedDay!)).toList();
+    final visible = switch (filter) {
+      ScheduleFilter.active => dateFiltered.where((j) => j.status == Status.scheduled).toList(),
+      ScheduleFilter.history => dateFiltered.where((j) => j.status != Status.scheduled).toList(),
+      ScheduleFilter.all => dateFiltered,
+    };
     final due = widget.jobs.where((j) => j.status == Status.scheduled && j.due).length;
     final upcoming = widget.jobs.where((j) => j.status == Status.scheduled && !j.due).length;
-    final sent = widget.jobs.where((j) => j.status == Status.sent).length;
+    final history = widget.jobs.where((j) => j.status != Status.scheduled).length;
     final last = widget.nativeEvents.isEmpty ? null : widget.nativeEvents.first;
 
     return AppPage(
       title: 'Scheduler',
-      subtitle: 'Plan texts, sync alarms, and check delivery from one screen.',
+      subtitle: 'Active schedules are grouped by day. History and logs stay out of the way.',
       icon: Icons.event_note,
       fab: () => widget.onEdit(null),
       children: [
-        QuickStats(due: due, upcoming: upcoming, sent: sent, autoSend: widget.autoSend),
+        QuickStats(due: due, upcoming: upcoming, sent: history, autoSend: widget.autoSend),
         AutoSendCard(enabled: widget.autoSend, onChanged: widget.onToggleAutoSend, onSync: widget.onSyncAlarms, alarmCount: widget.lastSyncedAlarmCount),
         if (last != null) LastResultCard(event: last, onRefresh: widget.onRefreshLogs),
+        ScheduleFilterBar(
+          value: filter,
+          activeCount: due + upcoming,
+          historyCount: history,
+          totalCount: widget.jobs.length,
+          onChanged: (value) => setState(() => filter = value),
+        ),
+        if (selectedDay != null) FilterChipRow(label: 'Showing ${_d(selectedDay!)}', onClear: () => setState(() => selectedDay = null)),
+        if (visible.isEmpty)
+          EmptyCard(icon: Icons.event_note, title: filter == ScheduleFilter.active ? 'No active schedules' : 'Nothing here', message: filter == ScheduleFilter.active ? 'Tap Add to schedule a text.' : 'Switch to Active or All to see scheduled texts.')
+        else
+          GroupedJobList(jobs: visible, onOpen: widget.onOpen, onEdit: widget.onEdit, onSent: widget.onSent, onCancel: widget.onCancel),
         ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16),
           collapsedShape: roundedShape,
@@ -577,8 +596,8 @@ class _SchedulePageState extends State<SchedulePage> {
           collapsedBackgroundColor: Colors.white,
           leading: const Icon(Icons.calendar_month),
           title: const Text('Calendar', style: TextStyle(fontWeight: FontWeight.w800)),
-          subtitle: const Text('Tap a day to filter the list.'),
-          initiallyExpanded: true,
+          subtitle: const Text('Optional: filter by day.'),
+          initiallyExpanded: false,
           children: [
             SchedulerCalendar(
               month: calendarMonth,
@@ -590,10 +609,6 @@ class _SchedulePageState extends State<SchedulePage> {
             ),
           ],
         ),
-        if (selectedDay != null) FilterChipRow(label: 'Showing ${_d(selectedDay!)}', onClear: () => setState(() => selectedDay = null)),
-        SectionHeader(icon: Icons.schedule, title: 'Scheduled texts', subtitle: filtered.isEmpty ? 'No matching messages.' : '${filtered.length} message${filtered.length == 1 ? '' : 's'} shown'),
-        if (filtered.isEmpty) const EmptyCard(icon: Icons.event_note, title: 'Nothing scheduled', message: 'Tap Add to schedule a text.'),
-        ...filtered.map((job) => JobTile(job: job, onOpen: widget.onOpen, onEdit: widget.onEdit, onSent: widget.onSent, onCancel: widget.onCancel)),
         ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16),
           collapsedShape: roundedShape,
@@ -602,9 +617,77 @@ class _SchedulePageState extends State<SchedulePage> {
           collapsedBackgroundColor: Colors.white,
           leading: const Icon(Icons.tune),
           title: const Text('Advanced logs', style: TextStyle(fontWeight: FontWeight.w800)),
-          subtitle: const Text('Use when you need to troubleshoot sending.'),
+          subtitle: const Text('Only open this when troubleshooting.'),
           children: [DiagnosticsCard(autoSend: widget.autoSend, alarmCount: widget.lastSyncedAlarmCount, lastRefresh: widget.lastLogRefresh, events: widget.nativeEvents, onRefresh: widget.onRefreshLogs)],
         ),
+      ],
+    );
+  }
+}
+
+class ScheduleFilterBar extends StatelessWidget {
+  const ScheduleFilterBar({super.key, required this.value, required this.activeCount, required this.historyCount, required this.totalCount, required this.onChanged});
+  final ScheduleFilter value;
+  final int activeCount;
+  final int historyCount;
+  final int totalCount;
+  final ValueChanged<ScheduleFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) => CleanCard(children: [
+        const SectionHeader(icon: Icons.view_agenda_outlined, title: 'View', subtitle: 'Active is the clean default. Sent and cancelled messages are hidden in History.'),
+        SegmentedButton<ScheduleFilter>(
+          segments: [
+            ButtonSegment(value: ScheduleFilter.active, label: Text('Active ($activeCount)'), icon: const Icon(Icons.schedule)),
+            ButtonSegment(value: ScheduleFilter.history, label: Text('History ($historyCount)'), icon: const Icon(Icons.history)),
+            ButtonSegment(value: ScheduleFilter.all, label: Text('All ($totalCount)'), icon: const Icon(Icons.list_alt)),
+          ],
+          selected: {value},
+          onSelectionChanged: (selected) => onChanged(selected.first),
+          showSelectedIcon: false,
+        ),
+      ]);
+}
+
+class GroupedJobList extends StatelessWidget {
+  const GroupedJobList({super.key, required this.jobs, required this.onOpen, required this.onEdit, required this.onSent, required this.onCancel});
+  final List<Job> jobs;
+  final void Function(Job) onOpen;
+  final Future<void> Function(Job?) onEdit;
+  final void Function(Job) onSent;
+  final void Function(Job) onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final grouped = <String, List<Job>>{};
+    for (final job in jobs) {
+      final key = _d(job.time);
+      grouped.putIfAbsent(key, () => []).add(job);
+    }
+    final keys = grouped.keys.toList()..sort();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(icon: Icons.schedule, title: 'Scheduled texts', subtitle: '${jobs.length} message${jobs.length == 1 ? '' : 's'} shown in ${keys.length} day group${keys.length == 1 ? '' : 's'}.'),
+        ...keys.map((key) {
+          final dayJobs = grouped[key]!..sort((a, b) => a.time.compareTo(b.time));
+          return ExpansionTile(
+            key: PageStorageKey('schedule-day-$key'),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+            collapsedShape: roundedShape,
+            shape: roundedShape,
+            backgroundColor: Colors.white,
+            collapsedBackgroundColor: Colors.white,
+            initiallyExpanded: keys.length <= 2,
+            leading: CircleAvatar(child: Text('${dayJobs.length}')),
+            title: Text(dayLabel(dayJobs.first.time), style: const TextStyle(fontWeight: FontWeight.w900)),
+            subtitle: Text('${_t(dayJobs.first.time)}${dayJobs.length > 1 ? ' - ${_t(dayJobs.last.time)}' : ''}'),
+            children: dayJobs.map((job) => Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                  child: JobTile(job: job, onOpen: onOpen, onEdit: onEdit, onSent: onSent, onCancel: onCancel),
+                )).toList(),
+          );
+        }),
       ],
     );
   }
@@ -623,7 +706,7 @@ class QuickStats extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(child: StatCard(label: 'Upcoming', value: '$upcoming', icon: Icons.schedule, tone: Colors.blue)),
         const SizedBox(width: 8),
-        Expanded(child: StatCard(label: autoSend ? 'Auto on' : 'Auto off', value: '$sent sent', icon: autoSend ? Icons.flash_on : Icons.flash_off, tone: autoSend ? Colors.green : Colors.grey)),
+        Expanded(child: StatCard(label: autoSend ? 'Auto on' : 'Auto off', value: '$sent done', icon: autoSend ? Icons.flash_on : Icons.flash_off, tone: autoSend ? Colors.green : Colors.grey)),
       ]);
 }
 
@@ -702,11 +785,12 @@ class JobTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
+        margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Expanded(child: Text(job.name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17))),
+              Expanded(child: Text(job.name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16))),
               StatusPill(job: job),
               PopupMenuButton<String>(
                 onSelected: (value) {
@@ -722,12 +806,16 @@ class JobTile extends StatelessWidget {
             Row(children: [
               Icon(Icons.schedule, size: 16, color: job.due ? Colors.red : Colors.black54),
               const SizedBox(width: 6),
-              Text('${_d(job.time)} ${_t(job.time)}${job.due ? ' • due now' : ''}', style: TextStyle(color: job.due ? Colors.red : Colors.black54, fontWeight: FontWeight.w700)),
+              Text('${_t(job.time)}${job.due ? ' • due now' : ''}', style: TextStyle(color: job.due ? Colors.red : Colors.black54, fontWeight: FontWeight.w700)),
             ]),
-            const Divider(height: 22),
-            Text(job.text),
+            const SizedBox(height: 8),
+            Text(job.text, maxLines: 2, overflow: TextOverflow.ellipsis),
             gap,
-            SizedBox(width: double.infinity, child: FilledButton.tonalIcon(onPressed: job.status == Status.scheduled ? () => onOpen(job) : null, icon: const Icon(Icons.sms), label: const Text('Open SMS'))),
+            Row(children: [
+              Expanded(child: FilledButton.tonalIcon(onPressed: job.status == Status.scheduled ? () => onOpen(job) : null, icon: const Icon(Icons.sms), label: const Text('Open SMS'))),
+              const SizedBox(width: 8),
+              OutlinedButton(onPressed: job.status == Status.scheduled ? () => onCancel(job) : null, child: const Text('Cancel')),
+            ]),
           ]),
         ),
       );
@@ -1162,6 +1250,12 @@ String _t(DateTime date) => '${date.hour.toString().padLeft(2, '0')}:${date.minu
 bool sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 String monthName(int month) => const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month - 1];
 String titleCase(String value) => value.isEmpty ? value : value[0].toUpperCase() + value.substring(1);
+String dayLabel(DateTime date) {
+  final now = DateTime.now();
+  if (sameDay(date, now)) return 'Today';
+  if (sameDay(date, now.add(const Duration(days: 1)))) return 'Tomorrow';
+  return '${_d(date)}';
+}
 String spacingLabel(String spacing) => switch (spacing) {
       'test15' => '15 seconds apart (test)',
       'test30' => '30 seconds apart (test)',
