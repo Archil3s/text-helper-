@@ -557,9 +557,12 @@ class _SchedulePageState extends State<SchedulePage> {
   Widget build(BuildContext context) {
     final sorted = [...widget.jobs]..sort((a, b) => a.time.compareTo(b.time));
     final dateFiltered = selectedDay == null ? sorted : sorted.where((j) => sameDay(j.time, selectedDay!)).toList();
+    final needsReview = dateFiltered.where((j) => j.status == Status.scheduled && j.due).toList();
+    final upcomingVisible = dateFiltered.where((j) => j.status == Status.scheduled && !j.due).toList();
+    final historyVisible = dateFiltered.where((j) => j.status != Status.scheduled).toList();
     final visible = switch (filter) {
-      ScheduleFilter.active => dateFiltered.where((j) => j.status == Status.scheduled).toList(),
-      ScheduleFilter.history => dateFiltered.where((j) => j.status != Status.scheduled).toList(),
+      ScheduleFilter.active => upcomingVisible,
+      ScheduleFilter.history => historyVisible,
       ScheduleFilter.all => dateFiltered,
     };
     final due = widget.jobs.where((j) => j.status == Status.scheduled && j.due).length;
@@ -569,7 +572,7 @@ class _SchedulePageState extends State<SchedulePage> {
 
     return AppPage(
       title: 'Scheduler',
-      subtitle: 'Active schedules are grouped by day. History and logs stay out of the way.',
+      subtitle: 'Upcoming texts stay front and center. Past due items are tucked into review.',
       icon: Icons.event_note,
       fab: () => widget.onEdit(null),
       children: [
@@ -578,14 +581,16 @@ class _SchedulePageState extends State<SchedulePage> {
         if (last != null) LastResultCard(event: last, onRefresh: widget.onRefreshLogs),
         ScheduleFilterBar(
           value: filter,
-          activeCount: due + upcoming,
+          activeCount: upcoming,
           historyCount: history,
           totalCount: widget.jobs.length,
           onChanged: (value) => setState(() => filter = value),
         ),
         if (selectedDay != null) FilterChipRow(label: 'Showing ${_d(selectedDay!)}', onClear: () => setState(() => selectedDay = null)),
+        if (filter == ScheduleFilter.active && needsReview.isNotEmpty)
+          NeedsReviewCard(jobs: needsReview, onOpen: widget.onOpen, onSent: widget.onSent, onCancel: widget.onCancel),
         if (visible.isEmpty)
-          EmptyCard(icon: Icons.event_note, title: filter == ScheduleFilter.active ? 'No active schedules' : 'Nothing here', message: filter == ScheduleFilter.active ? 'Tap Add to schedule a text.' : 'Switch to Active or All to see scheduled texts.')
+          EmptyCard(icon: Icons.event_note, title: filter == ScheduleFilter.active ? 'No upcoming texts' : 'Nothing here', message: filter == ScheduleFilter.active ? 'Tap Add to schedule your next text. Past due items are hidden in Needs review.' : 'Switch to Active or All to see scheduled texts.')
         else
           GroupedJobList(jobs: visible, onOpen: widget.onOpen, onEdit: widget.onEdit, onSent: widget.onSent, onCancel: widget.onCancel),
         ExpansionTile(
@@ -635,10 +640,10 @@ class ScheduleFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => CleanCard(children: [
-        const SectionHeader(icon: Icons.view_agenda_outlined, title: 'View', subtitle: 'Active is the clean default. Sent and cancelled messages are hidden in History.'),
+        const SectionHeader(icon: Icons.view_agenda_outlined, title: 'View', subtitle: 'Upcoming is the clean default. Past due items are grouped into Needs review.'),
         SegmentedButton<ScheduleFilter>(
           segments: [
-            ButtonSegment(value: ScheduleFilter.active, label: Text('Active ($activeCount)'), icon: const Icon(Icons.schedule)),
+            ButtonSegment(value: ScheduleFilter.active, label: Text('Upcoming ($activeCount)'), icon: const Icon(Icons.schedule)),
             ButtonSegment(value: ScheduleFilter.history, label: Text('History ($historyCount)'), icon: const Icon(Icons.history)),
             ButtonSegment(value: ScheduleFilter.all, label: Text('All ($totalCount)'), icon: const Icon(Icons.list_alt)),
           ],
@@ -647,6 +652,74 @@ class ScheduleFilterBar extends StatelessWidget {
           showSelectedIcon: false,
         ),
       ]);
+}
+
+class NeedsReviewCard extends StatelessWidget {
+  const NeedsReviewCard({super.key, required this.jobs, required this.onOpen, required this.onSent, required this.onCancel});
+  final List<Job> jobs;
+  final void Function(Job) onOpen;
+  final void Function(Job) onSent;
+  final void Function(Job) onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final sorted = [...jobs]..sort((a, b) => b.time.compareTo(a.time));
+    return ExpansionTile(
+      tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+      collapsedShape: roundedShape,
+      shape: roundedShape,
+      backgroundColor: Colors.white,
+      collapsedBackgroundColor: Colors.white,
+      leading: CircleAvatar(
+        backgroundColor: Colors.orange.withAlpha(30),
+        child: Text('${jobs.length}', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.orange)),
+      ),
+      title: const Text('Needs review', style: TextStyle(fontWeight: FontWeight.w900)),
+      subtitle: Text('${jobs.length} past due text${jobs.length == 1 ? '' : 's'} hidden to keep this screen clean.'),
+      initiallyExpanded: false,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Text(
+            'Review these when ready. Mark sent if they already went out, or cancel old tests you no longer need.',
+            style: TextStyle(color: Colors.black.withAlpha(150)),
+          ),
+        ),
+        ...sorted.take(8).map((job) => Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+              child: Card(
+                margin: EdgeInsets.zero,
+                color: const Color(0xFFFFFBEB),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Expanded(child: Text(job.name, style: const TextStyle(fontWeight: FontWeight.w900))),
+                      const Chip(label: Text('Past due')),
+                    ]),
+                    Text('${_d(job.time)} ${_t(job.time)}', style: const TextStyle(color: Colors.black54)),
+                    const SizedBox(height: 6),
+                    Text(job.text, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    gap,
+                    Row(children: [
+                      Expanded(child: FilledButton.tonalIcon(onPressed: () => onOpen(job), icon: const Icon(Icons.sms), label: const Text('Open'))),
+                      const SizedBox(width: 8),
+                      OutlinedButton(onPressed: () => onSent(job), child: const Text('Sent')),
+                      const SizedBox(width: 8),
+                      OutlinedButton(onPressed: () => onCancel(job), child: const Text('Cancel')),
+                    ]),
+                  ]),
+                ),
+              ),
+            )),
+        if (sorted.length > 8)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Text('${sorted.length - 8} more hidden. Use All view if you need to see everything.', style: const TextStyle(color: Colors.black54)),
+          ),
+      ],
+    );
+  }
 }
 
 class GroupedJobList extends StatelessWidget {
@@ -702,7 +775,7 @@ class QuickStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(children: [
-        Expanded(child: StatCard(label: 'Due', value: '$due', icon: Icons.warning_amber, tone: Colors.red)),
+        Expanded(child: StatCard(label: 'Review', value: '$due', icon: Icons.inbox_outlined, tone: Colors.orange)),
         const SizedBox(width: 8),
         Expanded(child: StatCard(label: 'Upcoming', value: '$upcoming', icon: Icons.schedule, tone: Colors.blue)),
         const SizedBox(width: 8),
@@ -804,9 +877,9 @@ class JobTile extends StatelessWidget {
             Text(job.phone, style: const TextStyle(color: Colors.black54)),
             const SizedBox(height: 6),
             Row(children: [
-              Icon(Icons.schedule, size: 16, color: job.due ? Colors.red : Colors.black54),
+              Icon(Icons.schedule, size: 16, color: job.due ? Colors.orange : Colors.black54),
               const SizedBox(width: 6),
-              Text('${_t(job.time)}${job.due ? ' • due now' : ''}', style: TextStyle(color: job.due ? Colors.red : Colors.black54, fontWeight: FontWeight.w700)),
+              Text('${_t(job.time)}${job.due ? ' • review' : ''}', style: TextStyle(color: job.due ? Colors.orange : Colors.black54, fontWeight: FontWeight.w700)),
             ]),
             const SizedBox(height: 8),
             Text(job.text, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -1129,11 +1202,11 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (job.status) {
-      Status.scheduled => job.due ? Colors.red : Colors.blue,
+      Status.scheduled => job.due ? Colors.orange : Colors.blue,
       Status.sent => Colors.green,
       Status.cancelled => Colors.grey,
     };
-    final label = job.status == Status.scheduled && job.due ? 'Due' : titleCase(job.status.name);
+    final label = job.status == Status.scheduled && job.due ? 'Review' : titleCase(job.status.name);
     return Chip(label: Text(label), backgroundColor: color.withAlpha(25), labelStyle: TextStyle(color: color, fontWeight: FontWeight.bold));
   }
 }
