@@ -652,6 +652,7 @@ class MainActivity : FlutterActivity() {
             val phoneNumber = alarm["phoneNumber"] as? String ?: continue
             val message = alarm["message"] as? String ?: continue
             val scheduledAtMillis = (alarm["scheduledAtMillis"] as? Number)?.toLong() ?: continue
+            val strictExact = alarm["strictExact"] as? Boolean ?: false
 
             val intent = Intent(this, BackgroundSmsReceiver::class.java).apply {
                 putExtra("alarmId", alarmId)
@@ -681,7 +682,9 @@ class MainActivity : FlutterActivity() {
                 scheduledAtMillis
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (strictExact) {
+                scheduleAlarmClock(alarmManager, triggerAt, pendingIntent, alarmId)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
                     alarmManager.setAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
@@ -713,6 +716,30 @@ class MainActivity : FlutterActivity() {
             .apply()
 
         return count
+    }
+
+    private fun scheduleAlarmClock(
+        alarmManager: AlarmManager,
+        triggerAt: Long,
+        operation: PendingIntent,
+        alarmId: String
+    ) {
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+            ?: Intent(this, MainActivity::class.java)
+
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+
+        val showIntent = PendingIntent.getActivity(
+            this,
+            alarmId.hashCode() xor 0x51ed,
+            launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        alarmManager.setAlarmClock(
+            AlarmManager.AlarmClockInfo(triggerAt, showIntent),
+            operation
+        )
     }
 
     private fun cancelAllBackgroundAlarms() {
@@ -781,4 +808,5 @@ class MainActivity : FlutterActivity() {
         }
     }
 }
+
 

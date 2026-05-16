@@ -273,9 +273,12 @@ class _AppState extends State<App> {
         if (showResult) snack('Closed-app sending is off.');
         return;
       }
-      final cutoff = DateTime.now().subtract(const Duration(minutes: 10));
-      final alarms = jobs
-          .where((j) => j.status == Status.scheduled && j.time.isAfter(cutoff) && j.phone.trim().isNotEmpty && j.text.trim().isNotEmpty)
+      final syncAfter = DateTime.now().add(const Duration(seconds: 3));
+      final scheduledJobs = jobs
+          .where((j) => j.status == Status.scheduled && j.time.isAfter(syncAfter) && j.phone.trim().isNotEmpty && j.text.trim().isNotEmpty)
+          .toList()
+        ..sort((a, b) => a.time.compareTo(b.time));
+      final alarms = scheduledJobs
           .map((j) => {
                 'alarmId': j.id,
                 'reminderId': j.id,
@@ -288,6 +291,7 @@ class _AppState extends State<App> {
                 'recurrenceRule': 'once',
                 'templateName': 'Text Helper',
                 'notes': 'Scheduled from Text Helper',
+                'strictExact': shouldUseStrictExactAlarm(j, scheduledJobs),
               })
           .toList();
       final count = await alarmChannel.invokeMethod<int>('syncBackgroundAlarms', {'alarms': alarms}) ?? 0;
@@ -1140,7 +1144,7 @@ class _JobFormState extends State<JobForm> {
               child: Row(children: [
                 CircleAvatar(radius: 12, child: Text('${index + 1}', style: const TextStyle(fontSize: 12))),
                 const SizedBox(width: 10),
-                Text('${_d(previewTime)} ${_t(previewTime)}'),
+                Text('${_d(previewTime)} ${_ts(previewTime)}'),
               ]),
             );
           }),
@@ -1320,6 +1324,7 @@ const spacingOptions = ['once', 'test15', 'test30', 'test60', 'daily', 'weekly',
 
 String _d(DateTime date) => '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 String _t(DateTime date) => '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+String _ts(DateTime date) => '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}:${date.second.toString().padLeft(2, '0')}';
 bool sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 String monthName(int month) => const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month - 1];
 String titleCase(String value) => value.isEmpty ? value : value[0].toUpperCase() + value.substring(1);
@@ -1339,6 +1344,14 @@ String spacingLabel(String spacing) => switch (spacing) {
       _ => 'Once',
     };
 int cappedCopies(String spacing, int copies) => spacing == 'once' ? 1 : spacing.startsWith('test') ? copies.clamp(1, 3) : copies.clamp(1, 10);
+bool shouldUseStrictExactAlarm(Job job, List<Job> scheduledJobs) {
+  for (final other in scheduledJobs) {
+    if (other.id == job.id) continue;
+    final gap = job.time.difference(other.time).abs();
+    if (gap <= const Duration(minutes: 2)) return true;
+  }
+  return false;
+}
 DateTime spacedTime(DateTime start, String spacing, int index) => switch (spacing) {
       'test15' => start.add(Duration(seconds: 15 * index)),
       'test30' => start.add(Duration(seconds: 30 * index)),
@@ -1364,3 +1377,5 @@ Color colorForStatus(String status) => switch (status) {
       'triggered' => Colors.purple,
       _ => Colors.grey,
     };
+
+
